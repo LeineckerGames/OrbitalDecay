@@ -1,0 +1,22 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "c:\\users\\vn\\documents\\work\\projects\\unreal\\orbitaldecay\\orbitaldecay\\source\\orbitaldecay\\variant_shooter\\weapons\\shooterweapon.cpp",
+        "ProvidedModule": "",
+        "PCH": "c:\\users\\vn\\documents\\work\\projects\\unreal\\orbitaldecay\\orbitaldecay\\intermediate\\build\\win64\\x64\\orbitaldecayeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.valexpapi.cpp20.h.pch",
+        "Includes": [
+            "c:\\users\\vn\\documents\\work\\projects\\unreal\\orbitaldecay\\orbitaldecay\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\orbitaldecay\\definitions.orbitaldecay.h",
+            "c:\\users\\vn\\documents\\work\\projects\\unreal\\orbitaldecay\\orbitaldecay\\source\\orbitaldecay\\variant_shooter\\weapons\\shooterweapon.h",
+            "c:\\users\\vn\\documents\\work\\projects\\unreal\\orbitaldecay\\orbitaldecay\\source\\orbitaldecay\\variant_shooter\\weapons\\shooterweaponholder.h",
+            "c:\\users\\vn\\documents\\work\\projects\\unreal\\orbitaldecay\\orbitaldecay\\intermediate\\build\\win64\\unrealeditor\\inc\\orbitaldecay\\uht\\shooterweaponholder.generated.h",
+            "c:\\users\\vn\\documents\\work\\projects\\unreal\\orbitaldecay\\orbitaldecay\\intermediate\\build\\win64\\unrealeditor\\inc\\orbitaldecay\\uht\\shooterweapon.generated.h",
+            "c:\\program files\\epic games\\ue_5.7\\engine\\source\\runtime\\engine\\classes\\kismet\\kismetmathlibrary.h",
+            "c:\\program files\\epic games\\ue_5.7\\engine\\intermediate\\build\\win64\\unrealeditor\\inc\\engine\\uht\\kismetmathlibrary.generated.h",
+            "c:\\program files\\epic games\\ue_5.7\\engine\\source\\runtime\\engine\\classes\\kismet\\kismetmathlibrary.inl",
+            "c:\\users\\vn\\documents\\work\\projects\\unreal\\orbitaldecay\\orbitaldecay\\source\\orbitaldecay\\variant_shooter\\weapons\\shooterprojectile.h",
+            "c:\\users\\vn\\documents\\work\\projects\\unreal\\orbitaldecay\\orbitaldecay\\intermediate\\build\\win64\\unrealeditor\\inc\\orbitaldecay\\uht\\shooterprojectile.generated.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

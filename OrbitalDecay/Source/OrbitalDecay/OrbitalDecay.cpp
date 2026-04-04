@@ -1,0 +1,8 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "OrbitalDecay.h"
+#include "Modules/ModuleManager.h"
+
+IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, OrbitalDecay, "OrbitalDecay" );
+
+DEFINE_LOG_CATEGORY(LogOrbitalDecay)

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("OrbitalDecayModuleRules")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Development")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+83edd5723105cd26072903259d7397fcdeef5dc9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0ce893fce0f599f1e636d2c47b5fc2e69c8fc123")]
 [assembly: System.Reflection.AssemblyProductAttribute("OrbitalDecayModuleRules")]
 [assembly: System.Reflection.AssemblyTitleAttribute("OrbitalDecayModuleRules")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

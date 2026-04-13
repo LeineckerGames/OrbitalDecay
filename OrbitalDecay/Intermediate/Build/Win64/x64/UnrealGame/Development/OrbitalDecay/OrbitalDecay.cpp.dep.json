@@ -1,0 +1,14 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "c:\\users\\lucas\\onedrive\\documents\\github\\orbitaldecay\\orbitaldecay\\source\\orbitaldecay\\orbitaldecay.cpp",
+        "ProvidedModule": "",
+        "PCH": "c:\\users\\lucas\\onedrive\\documents\\github\\orbitaldecay\\orbitaldecay\\intermediate\\build\\win64\\x64\\orbitaldecay\\development\\engine\\sharedpch.engine.project.valapi.valexpapi.cpp20.h.pch",
+        "Includes": [
+            "c:\\users\\lucas\\onedrive\\documents\\github\\orbitaldecay\\orbitaldecay\\intermediate\\build\\win64\\x64\\unrealgame\\development\\orbitaldecay\\definitions.orbitaldecay.h",
+            "c:\\users\\lucas\\onedrive\\documents\\github\\orbitaldecay\\orbitaldecay\\source\\orbitaldecay\\orbitaldecay.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

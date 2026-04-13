@@ -1,12 +1,12 @@
-"C:/Users/VN/Documents/Work/Projects/Unreal/OrbitalDecay/OrbitalDecay/Source/OrbitalDecay/OrbitalDecay.cpp"
-@"C:/Users/VN/Documents/Work/Projects/Unreal/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/UnrealEditor/Development/OrbitalDecay/OrbitalDecay.Shared.rsp"
-/FI"C:/Users/VN/Documents/Work/Projects/Unreal/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/OrbitalDecayEditor/Development/UnrealEd/SharedPCH.UnrealEd.Project.ValApi.ValExpApi.Cpp20.h"
-/FI"C:/Users/VN/Documents/Work/Projects/Unreal/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/UnrealEditor/Development/OrbitalDecay/Definitions.OrbitalDecay.h"
-/Yu"C:/Users/VN/Documents/Work/Projects/Unreal/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/OrbitalDecayEditor/Development/UnrealEd/SharedPCH.UnrealEd.Project.ValApi.ValExpApi.Cpp20.h"
-/Fp"C:/Users/VN/Documents/Work/Projects/Unreal/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/OrbitalDecayEditor/Development/UnrealEd/SharedPCH.UnrealEd.Project.ValApi.ValExpApi.Cpp20.h.pch"
-/Fo"C:/Users/VN/Documents/Work/Projects/Unreal/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/UnrealEditor/Development/OrbitalDecay/OrbitalDecay.cpp.obj"
-/experimental:log "C:/Users/VN/Documents/Work/Projects/Unreal/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/UnrealEditor/Development/OrbitalDecay/OrbitalDecay.cpp.sarif"
-/sourceDependencies "C:/Users/VN/Documents/Work/Projects/Unreal/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/UnrealEditor/Development/OrbitalDecay/OrbitalDecay.cpp.dep.json"
+"C:/Users/Lucas/OneDrive/Documents/GitHub/OrbitalDecay/OrbitalDecay/Source/OrbitalDecay/OrbitalDecay.cpp"
+@"C:/Users/Lucas/OneDrive/Documents/GitHub/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/UnrealEditor/Development/OrbitalDecay/OrbitalDecay.Shared.rsp"
+/FI"C:/Users/Lucas/OneDrive/Documents/GitHub/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/OrbitalDecayEditor/Development/UnrealEd/SharedPCH.UnrealEd.Project.ValApi.ValExpApi.Cpp20.h"
+/FI"C:/Users/Lucas/OneDrive/Documents/GitHub/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/UnrealEditor/Development/OrbitalDecay/Definitions.OrbitalDecay.h"
+/Yu"C:/Users/Lucas/OneDrive/Documents/GitHub/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/OrbitalDecayEditor/Development/UnrealEd/SharedPCH.UnrealEd.Project.ValApi.ValExpApi.Cpp20.h"
+/Fp"C:/Users/Lucas/OneDrive/Documents/GitHub/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/OrbitalDecayEditor/Development/UnrealEd/SharedPCH.UnrealEd.Project.ValApi.ValExpApi.Cpp20.h.pch"
+/Fo"C:/Users/Lucas/OneDrive/Documents/GitHub/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/UnrealEditor/Development/OrbitalDecay/OrbitalDecay.cpp.obj"
+/experimental:log "C:/Users/Lucas/OneDrive/Documents/GitHub/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/UnrealEditor/Development/OrbitalDecay/OrbitalDecay.cpp.sarif"
+/sourceDependencies "C:/Users/Lucas/OneDrive/Documents/GitHub/OrbitalDecay/OrbitalDecay/Intermediate/Build/Win64/x64/UnrealEditor/Development/OrbitalDecay/OrbitalDecay.cpp.dep.json"
 /nologo
 /Oi
 /FC

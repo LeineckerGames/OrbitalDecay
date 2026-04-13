@@ -1,12 +1,12 @@
 {
     "Version": "1.2",
     "Data": {
-        "Source": "c:\\users\\vn\\documents\\work\\projects\\unreal\\orbitaldecay\\orbitaldecay\\source\\orbitaldecay\\orbitaldecay.cpp",
+        "Source": "c:\\users\\lucas\\onedrive\\documents\\github\\orbitaldecay\\orbitaldecay\\source\\orbitaldecay\\orbitaldecay.cpp",
         "ProvidedModule": "",
-        "PCH": "c:\\users\\vn\\documents\\work\\projects\\unreal\\orbitaldecay\\orbitaldecay\\intermediate\\build\\win64\\x64\\orbitaldecayeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.valexpapi.cpp20.h.pch",
+        "PCH": "c:\\users\\lucas\\onedrive\\documents\\github\\orbitaldecay\\orbitaldecay\\intermediate\\build\\win64\\x64\\orbitaldecayeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.valexpapi.cpp20.h.pch",
         "Includes": [
-            "c:\\users\\vn\\documents\\work\\projects\\unreal\\orbitaldecay\\orbitaldecay\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\orbitaldecay\\definitions.orbitaldecay.h",
-            "c:\\users\\vn\\documents\\work\\projects\\unreal\\orbitaldecay\\orbitaldecay\\source\\orbitaldecay\\orbitaldecay.h"
+            "c:\\users\\lucas\\onedrive\\documents\\github\\orbitaldecay\\orbitaldecay\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\orbitaldecay\\definitions.orbitaldecay.h",
+            "c:\\users\\lucas\\onedrive\\documents\\github\\orbitaldecay\\orbitaldecay\\source\\orbitaldecay\\orbitaldecay.h"
         ],
         "ImportedModules": [],
         "ImportedHeaderUnits": []

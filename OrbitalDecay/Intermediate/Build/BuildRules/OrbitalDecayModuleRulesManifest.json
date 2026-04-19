@@ -1,8 +1,8 @@
 {
 	"SourceFiles": [
-		"C:\\Users\\VN\\Documents\\Work\\Projects\\Unreal\\OrbitalDecay\\OrbitalDecay\\Source\\OrbitalDecay\\OrbitalDecay.Build.cs",
-		"C:\\Users\\VN\\Documents\\Work\\Projects\\Unreal\\OrbitalDecay\\OrbitalDecay\\Source\\OrbitalDecay.Target.cs",
-		"C:\\Users\\VN\\Documents\\Work\\Projects\\Unreal\\OrbitalDecay\\OrbitalDecay\\Source\\OrbitalDecayEditor.Target.cs"
+		"C:\\Users\\Lucas\\OneDrive\\Documents\\GitHub\\OrbitalDecay\\OrbitalDecay\\Source\\OrbitalDecay\\OrbitalDecay.Build.cs",
+		"C:\\Users\\Lucas\\OneDrive\\Documents\\GitHub\\OrbitalDecay\\OrbitalDecay\\Source\\OrbitalDecay.Target.cs",
+		"C:\\Users\\Lucas\\OneDrive\\Documents\\GitHub\\OrbitalDecay\\OrbitalDecay\\Source\\OrbitalDecayEditor.Target.cs"
 	],
-	"EngineVersion": "5.7.4"
+	"EngineVersion": "5.7.3"
 }

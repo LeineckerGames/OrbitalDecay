@@ -14,7 +14,7 @@ struct FTransformFrame
 };
 
 UCLASS()
-class YOURGAME_API AReplayRecorder : public AActor
+class ORBITALDECAY_API AReplayRecorder : public AActor
 {
     GENERATED_BODY()
 

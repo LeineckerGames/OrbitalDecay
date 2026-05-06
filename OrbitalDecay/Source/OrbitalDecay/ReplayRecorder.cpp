@@ -3,17 +3,13 @@
 AReplayRecorder::AReplayRecorder()
 {
     PrimaryActorTick.bCanEverTick = true;
-
-    bReplaying = false;
-    FrameIndex = 0;
-    ReplayIndex = 0;
 }
 
 void AReplayRecorder::BeginPlay()
 {
     Super::BeginPlay();
 
-    BufferSize = FMath::RoundToInt(RecordTime * TargetFPS);
+    BufferSize = FMath::Max(1, FMath::RoundToInt(RecordTime * TargetFPS));
     Buffer.SetNum(BufferSize);
 }
 
@@ -21,31 +17,53 @@ void AReplayRecorder::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (bReplaying)
+    if (!TargetActor)
     {
-        // Replay mode
-        const FTransformFrame& Frame = Buffer[ReplayIndex];
-
-        SetActorLocation(Frame.Position);
-        SetActorRotation(Frame.Rotation);
-
-        ReplayIndex = (ReplayIndex + 1) % BufferSize;
         return;
     }
 
-    // Recording mode
-    FTransformFrame& Frame = Buffer[FrameIndex];
+    const float FrameInterval = 1.f / TargetFPS;
+    TimeAccumulator += DeltaTime;
 
-    Frame.Position = GetActorLocation();
-    Frame.Rotation = GetActorRotation();
+    while (TimeAccumulator >= FrameInterval)
+    {
+        TimeAccumulator -= FrameInterval;
 
-    FrameIndex = (FrameIndex + 1) % BufferSize;
+        if (bReplaying)
+        {
+            const FTransformFrame& Frame = Buffer[ReplayIndex];
+            TargetActor->SetActorLocation(Frame.Position);
+            TargetActor->SetActorRotation(Frame.Rotation);
+
+            ReplayIndex = (ReplayIndex + 1) % BufferSize;
+            ReplayFramesPlayed++;
+
+            if (ReplayFramesPlayed >= BufferSize)
+            {
+                StopReplay();
+            }
+        }
+        else
+        {
+            FTransformFrame& Frame = Buffer[FrameIndex];
+            Frame.Position = TargetActor->GetActorLocation();
+            Frame.Rotation = TargetActor->GetActorRotation();
+
+            FrameIndex = (FrameIndex + 1) % BufferSize;
+        }
+    }
 }
 
 void AReplayRecorder::StartReplay()
 {
+    if (bReplaying)
+    {
+        return;
+    }
+
     bReplaying = true;
-    ReplayIndex = FrameIndex; // start from oldest frame
+    ReplayFramesPlayed = 0;
+    ReplayIndex = FrameIndex;
 }
 
 void AReplayRecorder::StopReplay()

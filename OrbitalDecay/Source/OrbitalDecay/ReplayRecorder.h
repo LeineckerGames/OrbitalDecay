@@ -4,13 +4,16 @@
 #include "GameFramework/Actor.h"
 #include "ReplayRecorder.generated.h"
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FTransformFrame
 {
     GENERATED_BODY()
 
-    FVector Position;
-    FRotator Rotation;
+    UPROPERTY()
+    FVector Position = FVector::ZeroVector;
+
+    UPROPERTY()
+    FRotator Rotation = FRotator::ZeroRotator;
 };
 
 UCLASS()
@@ -26,21 +29,30 @@ protected:
     virtual void Tick(float DeltaTime) override;
 
 public:
-    UFUNCTION(BlueprintCallable)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    AActor* TargetActor = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    float RecordTime = 10.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    float TargetFPS = 60.0f;
+
+    UFUNCTION(BlueprintCallable, Category = "Replay")
     void StartReplay();
 
-    UFUNCTION(BlueprintCallable)
+    UFUNCTION(BlueprintCallable, Category = "Replay")
     void StopReplay();
+
+    UFUNCTION(BlueprintPure, Category = "Replay")
+    bool IsReplaying() const { return bReplaying; }
 
 private:
     TArray<FTransformFrame> Buffer;
-
-    int32 BufferSize;
-    int32 FrameIndex;
-
-    float RecordTime = 10.0f;
-    float TargetFPS = 60.0f;
-
-    bool bReplaying;
-    int32 ReplayIndex;
+    int32 BufferSize = 0;
+    int32 FrameIndex = 0;
+    int32 ReplayIndex = 0;
+    int32 ReplayFramesPlayed = 0;
+    bool bReplaying = false;
+    float TimeAccumulator = 0.f;
 };

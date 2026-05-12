@@ -62,45 +62,26 @@ void SCockpitWidget::Construct(const FArguments& InArgs)
 // ─── Window Area ─────────────────────────────────────────────────
 TSharedRef<SWidget> SCockpitWidget::BuildWindowArea()
 {
-    return SNew(SBorder)
-        .BorderBackgroundColor(C_WindowBg)
-        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-        .Padding(4.f)
+    return SNew(SOverlay)
+
+        // Fully transparent window - game world shows through
+        + SOverlay::Slot()
+        .HAlign(HAlign_Fill)
+        .VAlign(VAlign_Fill)
         [
-            // Placeholder: transparent viewport window
-            // Real art: cockpit frame PNG with transparent center will go here
-            SNew(SOverlay)
+            SNew(SSpacer)
+        ]
 
-                // Window frame border effect
-                + SOverlay::Slot()
-                .HAlign(HAlign_Fill)
-                .VAlign(VAlign_Fill)
-                [
-                    SNew(SBorder)
-                        .BorderBackgroundColor(C_PanelBorder)
-                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                        .Padding(6.f)
-                        [
-                            SNew(SBorder)
-                                .BorderBackgroundColor(C_Transparent)
-                                .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                                [
-                                    SNew(SSpacer) // transparent center - world shows through
-                                ]
-                        ]
-                ]
-
-            // Result feedback text centered in window
-            + SOverlay::Slot()
-                .HAlign(HAlign_Center)
-                .VAlign(VAlign_Bottom)
-                .Padding(0, 0, 0, 20)
-                [
-                    SNew(STextBlock)
-                        .Font(FCoreStyle::GetDefaultFontStyle("Bold", 28))
-                        .ColorAndOpacity_Lambda([this]() { return ResultColor; })
-                        .Text_Lambda([this]() { return ResultText; })
-                ]
+        // Result feedback text at bottom of window
+        + SOverlay::Slot()
+        .HAlign(HAlign_Center)
+        .VAlign(VAlign_Bottom)
+        .Padding(0, 0, 0, 20)
+        [
+            SNew(STextBlock)
+                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 28))
+                .ColorAndOpacity_Lambda([this]() { return ResultColor; })
+                .Text_Lambda([this]() { return ResultText; })
         ];
 }
 
@@ -312,109 +293,125 @@ TSharedRef<SWidget> SCockpitWidget::BuildThrottleIndicator()
 // ─── Thrust Switch ────────────────────────────────────────────────
 TSharedRef<SWidget> SCockpitWidget::BuildThrustSwitch()
 {
-    return SNew(SVerticalBox)
-
-        + SVerticalBox::Slot()
-        .AutoHeight()
-        .HAlign(HAlign_Center)
-        [
-            SNew(STextBlock)
-                .Text(FText::FromString(TEXT("VERTICAL")))
-                .Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
-                .ColorAndOpacity_Lambda([this]() -> FSlateColor
+    return SNew(SButton)
+        .ButtonColorAndOpacity(C_Transparent)
+        .OnClicked_Lambda([this]() -> FReply
+            {
+                if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                {
+                    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                    if (P)
                     {
-                        if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
-                        {
-                            ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                            if (P) return P->bForwardThrustMode ?
-                                FSlateColor(C_PanelBorder) : FSlateColor(C_AccentGreen);
-                        }
-                        return FSlateColor(C_AccentGreen);
-                    })
-        ]
-
-    + SVerticalBox::Slot()
-        .AutoHeight()
-        .HAlign(HAlign_Center)
-        .Padding(0, 2)
+                        P->ToggleThrustMode();
+                        ResultText = FText::FromString(P->bForwardThrustMode ?
+                            TEXT("FORWARD THRUST") : TEXT("VERTICAL THRUST"));
+                        ResultColor = FSlateColor(C_AccentAmber);
+                    }
+                }
+                return FReply::Handled();
+            })
         [
-            SNew(SBox)
-                .WidthOverride(20.f)
-                .HeightOverride(40.f)
+            SNew(SVerticalBox)
+
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
                 [
-                    SNew(SOverlay)
+                    SNew(STextBlock)
+                        .Text(FText::FromString(TEXT("VERTICAL")))
+                        .Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
+                        .ColorAndOpacity_Lambda([this]() -> FSlateColor
+                            {
+                                if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                                {
+                                    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                                    if (P) return P->bForwardThrustMode ?
+                                        FSlateColor(C_PanelBorder) : FSlateColor(C_AccentGreen);
+                                }
+                                return FSlateColor(C_AccentGreen);
+                            })
+                ]
 
-                        // Track background
-                        + SOverlay::Slot()
+            + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                .Padding(0, 2)
+                [
+                    SNew(SBox)
+                        .WidthOverride(20.f)
+                        .HeightOverride(40.f)
                         [
-                            SNew(SBorder)
-                                .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                                .BorderBackgroundColor(C_PanelBorder)
-                        ]
+                            SNew(SOverlay)
 
-                        // Switch knob - top = vertical, bottom = forward
-                        + SOverlay::Slot()
-                        .VAlign(VAlign_Top)
-                        [
-                            SNew(SBox)
-                                .HeightOverride(18.f)
+                                + SOverlay::Slot()
                                 [
                                     SNew(SBorder)
                                         .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                                        .BorderBackgroundColor_Lambda([this]() -> FLinearColor
-                                            {
-                                                if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
-                                                {
-                                                    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                                                    if (P) return P->bForwardThrustMode ?
-                                                        C_PanelBorder : C_AccentAmber;
-                                                }
-                                                return C_AccentAmber;
-                                            })
+                                        .BorderBackgroundColor(C_PanelBorder)
                                 ]
-                        ]
 
-                    // Second knob position for forward mode
-                    + SOverlay::Slot()
-                        .VAlign(VAlign_Bottom)
-                        [
-                            SNew(SBox)
-                                .HeightOverride(18.f)
+                                + SOverlay::Slot()
+                                .VAlign(VAlign_Top)
                                 [
-                                    SNew(SBorder)
-                                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                                        .BorderBackgroundColor_Lambda([this]() -> FLinearColor
-                                            {
-                                                if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
-                                                {
-                                                    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                                                    if (P) return P->bForwardThrustMode ?
-                                                        C_AccentAmber : C_PanelBorder;
-                                                }
-                                                return C_PanelBorder;
-                                            })
+                                    SNew(SBox)
+                                        .HeightOverride(18.f)
+                                        [
+                                            SNew(SBorder)
+                                                .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                                                .BorderBackgroundColor_Lambda([this]() -> FLinearColor
+                                                    {
+                                                        if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                                                        {
+                                                            ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                                                            if (P) return P->bForwardThrustMode ?
+                                                                C_PanelBorder : C_AccentAmber;
+                                                        }
+                                                        return C_AccentAmber;
+                                                    })
+                                        ]
+                                ]
+
+                            + SOverlay::Slot()
+                                .VAlign(VAlign_Bottom)
+                                [
+                                    SNew(SBox)
+                                        .HeightOverride(18.f)
+                                        [
+                                            SNew(SBorder)
+                                                .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                                                .BorderBackgroundColor_Lambda([this]() -> FLinearColor
+                                                    {
+                                                        if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                                                        {
+                                                            ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                                                            if (P) return P->bForwardThrustMode ?
+                                                                C_AccentAmber : C_PanelBorder;
+                                                        }
+                                                        return C_PanelBorder;
+                                                    })
+                                        ]
                                 ]
                         ]
                 ]
-        ]
 
-    + SVerticalBox::Slot()
-        .AutoHeight()
-        .HAlign(HAlign_Center)
-        [
-            SNew(STextBlock)
-                .Text(FText::FromString(TEXT("FORWARD")))
-                .Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
-                .ColorAndOpacity_Lambda([this]() -> FSlateColor
-                    {
-                        if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
-                        {
-                            ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                            if (P) return P->bForwardThrustMode ?
-                                FSlateColor(C_AccentGreen) : FSlateColor(C_PanelBorder);
-                        }
-                        return FSlateColor(C_PanelBorder);
-                    })
+            + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                [
+                    SNew(STextBlock)
+                        .Text(FText::FromString(TEXT("FORWARD")))
+                        .Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
+                        .ColorAndOpacity_Lambda([this]() -> FSlateColor
+                            {
+                                if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                                {
+                                    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                                    if (P) return P->bForwardThrustMode ?
+                                        FSlateColor(C_AccentGreen) : FSlateColor(C_PanelBorder);
+                                }
+                                return FSlateColor(C_PanelBorder);
+                            })
+                ]
         ];
 }
 

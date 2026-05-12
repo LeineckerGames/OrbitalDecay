@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Input/SEditableText.h"
 
 class AMyHUD;
 
@@ -21,6 +22,23 @@ private:
     FText ResultText;
     FSlateColor ResultColor;
 
+    // Helper functions - one per section (professor's pattern)
+    TSharedRef<SWidget> BuildWindowArea();
+    TSharedRef<SWidget> BuildBottomPanel();
+    TSharedRef<SWidget> BuildLeftPanel();
+    TSharedRef<SWidget> BuildCenterPanel();
+    TSharedRef<SWidget> BuildRightPanel();
+    TSharedRef<SWidget> BuildFuelGauge();
+    TSharedRef<SWidget> BuildThrottleIndicator();
+    TSharedRef<SWidget> BuildThrustSwitch();
+    TSharedRef<SWidget> BuildComputerDisplay();
+    TSharedRef<SWidget> BuildKeypad();
+    TSharedRef<SWidget> BuildMinimap();
+    TSharedRef<SWidget> BuildAltitudePanel();
+    TSharedRef<SWidget> BuildKeypadButton(FString Label);
+
+    FReply OnKeypadButtonClicked(FString Label);
     FReply OnAnswerCommitted(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
     void CheckAnswer();
+    void AppendToInput(FString Character);
 };

@@ -6,18 +6,14 @@ ALanderPawn::ALanderPawn()
 {
     PrimaryActorTick.bCanEverTick = true;
 
-    USceneComponent* Root = CreateDefaultSubobject<USceneComponent>(TEXT("RootTransform"));
-    RootComponent = Root;
-
-    // Now assigned to member variable, not a local
     Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LanderBody"));
-    Mesh->SetupAttachment(RootComponent);
+    RootComponent = Mesh;
     Mesh->SetMobility(EComponentMobility::Movable);
 
-    // Now assigned to member variable, not a local
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("LanderCamera"));
     Camera->SetupAttachment(RootComponent);
     Camera->SetRelativeLocation(FVector(-500.f, 0.f, 0.f));
+    Camera->SetRelativeRotation(CameraRotation);
 }
 
 void ALanderPawn::BeginPlay()
@@ -29,6 +25,8 @@ void ALanderPawn::BeginPlay()
 void ALanderPawn::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+
+    if (bHasLanded) return;
 
     AOrbitalDecayGameMode* MyGameMode = Cast<AOrbitalDecayGameMode>(GetWorld()->GetAuthGameMode());
     if (MyGameMode)
@@ -92,18 +90,47 @@ void ALanderPawn::Tick(float DeltaTime)
 
     if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, Params))
     {
-        CurrentAltitude = HitResult.Distance * 0.0328084f;
+        float DistanceCM = HitResult.Distance;
+        float DistanceFeet = DistanceCM * 0.0328084f;
+        CurrentAltitude = DistanceFeet;
+
+        if (HitResult.Distance < 50.0f && !bHasLanded)
+        {
+            bHasLanded = true;
+            float ImpactVelocity = CurrentVelocity.Z;
+            CurrentVelocity = FVector::ZeroVector;
+            bIsBoosting = false;
+
+            // Lock position at landing point
+            FVector LandedPosition = GetActorLocation();
+            LandedPosition.Z = HitResult.ImpactPoint.Z + 50.0f;
+            SetActorLocation(LandedPosition);
+
+            if (ImpactVelocity <= MaxSafeLandingVelocity)
+            {
+                if (GEngine)
+                {
+                    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("CRASHED!"));
+                }
+            }
+            else
+            {
+                if (GEngine)
+                {
+                    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("LANDED SUCCESSFULLY!"));
+                }
+            }
+        }
     }
     else
     {
         CurrentAltitude = 99999.f;
     }
 
-	// Smoothly interpolate rotation towards target
+    // Smoothly interpolate rotation towards target
     FRotator CurrentRotation = GetActorRotation();
     FRotator SmoothedRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, RotationInterpSpeed);
     SetActorRotation(SmoothedRotation);
-
 }
 
 void ALanderPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

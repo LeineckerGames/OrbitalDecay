@@ -60,12 +60,20 @@ public:
     UPROPERTY(EditAnywhere, Category = "Camera")
     float RotationInterpSpeed = 3.0f; // Higher = faster rotation, lower = slower
 
+    UPROPERTY(EditAnywhere, Category = "Flight")
+    float MaxSafeLandingVelocity = -200.0f; // Adjust this to tune difficulty
+
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    FRotator CameraRotation = FRotator(-15.f, 0.f, 0.f);
+
     FRotator TargetRotation = FRotator::ZeroRotator;
 
     void RotateLeft();
     void RotateRight();
 
     bool bForwardThrustMode = false;
+
+    bool bHasLanded = false;
 
     void ToggleThrustMode();
 

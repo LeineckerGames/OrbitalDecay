@@ -1,4 +1,5 @@
 #include "ReplayRecorder.h"
+#include "Kismet/GameplayStatics.h"
 
 AReplayRecorder::AReplayRecorder()
 {
@@ -11,6 +12,11 @@ void AReplayRecorder::BeginPlay()
 
     BufferSize = FMath::Max(1, FMath::RoundToInt(RecordTime * TargetFPS));
     Buffer.SetNum(BufferSize);
+
+    if (!TargetActor)
+    {
+        TargetActor = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+    }
 }
 
 void AReplayRecorder::Tick(float DeltaTime)

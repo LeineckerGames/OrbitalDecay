@@ -246,3 +246,17 @@ void ALanderPawn::RotateRight()
 {
     TargetRotation.Yaw += RotationStep;
 }
+
+void ALanderPawn::DisablePlayerInput()
+{
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (PC)
+    {
+        DisableInput(PC);
+    }
+}
+
+void ALanderPawn::ResetPawn()
+{
+    // Sprint 5 - restore position, velocity, fuel, rotation, bHasLanded
+}

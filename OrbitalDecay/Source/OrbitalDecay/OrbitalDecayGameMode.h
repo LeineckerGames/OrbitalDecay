@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "OrbitalDecayGameMode.generated.h"
+#include "ReplayRecorder.h"
 
 UENUM(BlueprintType)
 enum class EGameState : uint8
@@ -34,6 +35,9 @@ public:
     void TriggerFailure();
     void StartReplay();
     void RestartGame(); // stub   Sprint 5
+
+    UPROPERTY()
+    AReplayRecorder* ReplayRecorder = nullptr;
 
 protected:
     virtual void BeginPlay() override;

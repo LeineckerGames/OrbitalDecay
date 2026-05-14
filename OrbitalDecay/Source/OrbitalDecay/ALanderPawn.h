@@ -84,6 +84,8 @@ public:
     void ActivateBoost();
     void AddFuel(float Amount);
     void StartCrashReplay();
+    void DisablePlayerInput();
+    void ResetPawn(); // Sprint 5 stub
 
     bool bForwardThrustMode = false;
     bool bHasLanded = false;

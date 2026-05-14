@@ -1,6 +1,7 @@
 #include "OrbitalDecayGameMode.h"
 #include "MyHUD.h"
 #include "ALanderPawn.h"
+#include "Kismet/GameplayStatics.h"
 
 AOrbitalDecayGameMode::AOrbitalDecayGameMode()
 {
@@ -17,6 +18,14 @@ AOrbitalDecayGameMode::AOrbitalDecayGameMode()
 void AOrbitalDecayGameMode::BeginPlay()
 {
     Super::BeginPlay();
+
+    TArray<AActor*> FoundActors;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AReplayRecorder::StaticClass(), FoundActors);
+    if (FoundActors.Num() > 0)
+    {
+        ReplayRecorder = Cast<AReplayRecorder>(FoundActors[0]);
+    }
+
     SetGameState(EGameState::Playing);
 }
 
@@ -47,7 +56,10 @@ void AOrbitalDecayGameMode::SetGameState(EGameState NewState)
         break;
 
     case EGameState::Replay:
-        // TODO: tell ReplayRecorder to play back
+        if (ReplayRecorder)
+        {
+            ReplayRecorder->StartReplay();
+        }
         UE_LOG(LogTemp, Warning, TEXT("GameState -> Replay"));
         break;
     }

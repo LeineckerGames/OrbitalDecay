@@ -16,10 +16,15 @@ ADiaMONDSQUARE::ADiaMONDSQUARE()
 
 }
 
-void ADiaMONDSQUARE::OnConstruction(const FTransform& Transform)
+void ADiaMONDSQUARE::BeginPlay()
 {
-	Super::OnConstruction(Transform);
+	Super::BeginPlay();
 
+	FMath::RandInit(FDateTime::Now().GetTicks());
+	RandomOffset = FMath::FRand() * 10000.0f; // store to member, don't calc Z here
+
+	Vertices.Reset();
+	
 	Vertices.Reset();
 	Triangles.Reset();
 	UV0.Reset();
@@ -30,6 +35,12 @@ void ADiaMONDSQUARE::OnConstruction(const FTransform& Transform)
 	}
 	SpawnedObjects.Reset();
 
+	for (AActor* Actor : SpawnedActors)
+	{
+		if (Actor) Actor->Destroy();
+	}
+	SpawnedActors.Reset();
+
 	CreateVertices();
 	CreateTriangles();
 
@@ -37,17 +48,12 @@ void ADiaMONDSQUARE::OnConstruction(const FTransform& Transform)
 	ProceduralMesh->CreateMeshSection(0, Vertices, Triangles, Normals, UV0, TArray<FColor>(), Tangents, true);
 	ProceduralMesh->SetMaterial(0, Material);
 
-	// Run placement for every layer
 	for (const FObjectPlacementConfig& Config : ObjectLayers)
 	{
 		PlaceObjects(Config);
 	}
-}
 
-void ADiaMONDSQUARE::BeginPlay()
-{
-	Super::BeginPlay();
-	
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("BeginPlay ran"));
 }
 
 
@@ -63,13 +69,9 @@ void ADiaMONDSQUARE::CreateVertices()
 	{
 		for (int Y = 0; Y <= YSize; ++Y)
 		{
-			float Z = FMath::PerlinNoise2D(FVector2D(X * NoiseScale+ 0.1, Y * NoiseScale+ 0.1)) * ZMultiplier;
-			//GEngine->AddOnScreenDebugMessage(-1, 999.0f, FColor::Yellow, FString::Printf(TEXT("Z %f"), Z));
+			float Z = FMath::PerlinNoise2D(FVector2D(X * NoiseScale + RandomOffset, Y * NoiseScale + RandomOffset)) * ZMultiplier;
 			Vertices.Add(FVector(X * Scale, Y * Scale, Z));
-			UV0.Add(FVector2D(X*UVScale,Y*UVScale));
-
-			//debug
-			//DrawDebugSphere(GetWorld(), FVector(X * Scale, Y * Scale, 0), 25.0f, 16, FColor::Red, true, -1.0f, 0U, 0.0f);
+			UV0.Add(FVector2D(X * UVScale, Y * UVScale));
 		}
 	}
 }
@@ -97,13 +99,12 @@ void ADiaMONDSQUARE::CreateTriangles()
 
 void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
 {
-	if (!Config.Mesh || Vertices.IsEmpty()) return;
+	if ((!Config.Mesh && !Config.ActorClass) || Vertices.IsEmpty()) return;
 
 	TArray<FVector> PlacedPositions;
 
 	TArray<int32> Indices;
 	for (int32 i = 0; i < Vertices.Num(); ++i) Indices.Add(i);
-
 	for (int32 i = Indices.Num() - 1; i > 0; --i)
 	{
 		int32 j = FMath::RandRange(0, i);
@@ -127,16 +128,38 @@ void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
 				break;
 			}
 		}
-
 		if (bTooClose) continue;
 
-		UStaticMeshComponent* NewObj = NewObject<UStaticMeshComponent>(this);
-		NewObj->SetStaticMesh(Config.Mesh);
-		NewObj->SetupAttachment(GetRootComponent());
-		NewObj->RegisterComponent();
-		NewObj->SetWorldLocation(WorldPos + FVector(0.0f, 0.0f, Config.ZOffset));
+		FVector SpawnLocation = WorldPos + FVector(0.0f, 0.0f, Config.ZOffset);
 
-		SpawnedObjects.Add(NewObj);
+		// --- existing mesh component spawn (unchanged) ---
+		if (Config.Mesh)
+		{
+			UStaticMeshComponent* NewObj = NewObject<UStaticMeshComponent>(this);
+			NewObj->SetStaticMesh(Config.Mesh);
+			NewObj->SetupAttachment(GetRootComponent());
+			NewObj->RegisterComponent();
+			NewObj->SetWorldLocation(SpawnLocation);
+			SpawnedObjects.Add(NewObj);
+		}
+
+		// --- NEW: actor spawn ---
+		if (Config.ActorClass)
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Owner = this;
+			AActor* NewActor = GetWorld()->SpawnActor<AActor>(
+				Config.ActorClass,
+				SpawnLocation,
+				FRotator::ZeroRotator,
+				SpawnParams
+			);
+			if (NewActor)
+			{
+				SpawnedActors.Add(NewActor);
+			}
+		}
+
 		PlacedPositions.Add(WorldPos);
 		++Placed;
 	}

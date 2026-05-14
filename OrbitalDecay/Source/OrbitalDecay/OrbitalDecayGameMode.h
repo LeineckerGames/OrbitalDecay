@@ -33,7 +33,7 @@ public:
     void TriggerSuccess();
     void TriggerFailure();
     void StartReplay();
-    void RestartGame(); // stub — Sprint 5
+    void RestartGame(); // stub   Sprint 5
 
 protected:
     virtual void BeginPlay() override;

@@ -2,13 +2,14 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "Camera/CameraComponent.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "ReplayRecorder.h"
 #include "ALanderPawn.generated.h"
 
 UCLASS()
 class ORBITALDECAY_API ALanderPawn : public APawn
 {
     GENERATED_BODY()
-
 public:
     ALanderPawn();
 
@@ -17,6 +18,15 @@ public:
 
     UPROPERTY(VisibleAnywhere, Category = "Components")
     UCameraComponent* Camera;
+
+    UPROPERTY(VisibleAnywhere, Category = "Components")
+    USpringArmComponent* ReplaySpringArm;
+
+    UPROPERTY(VisibleAnywhere, Category = "Components")
+    UCameraComponent* ReplayCamera;
+
+    UPROPERTY(EditAnywhere, Category = "Replay")
+    AReplayRecorder* ReplayRecorder = nullptr;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
     int32 MyCurrentLevel = 1;
@@ -28,25 +38,25 @@ public:
     float CurrentAltitude = 0.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float Fuel = 1000.0f; // Starting fuel, player can change this later
+    float Fuel = 1000.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
     float MaxFuel = 1000.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float DefaultThrust = 100.0f; // Slows fall but doesn't stop it
+    float DefaultThrust = 100.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float BoostedThrust = 300.0f; // Applied when correct answer is given
+    float BoostedThrust = 300.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float FuelDrainIdle = 1.0f; // Fuel per second at default thrust
+    float FuelDrainIdle = 1.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float FuelDrainBoost = 5.0f; // Fuel per second during boost
+    float FuelDrainBoost = 5.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float BoostDuration = 3.0f; // How long a correct answer boost lasts in seconds
+    float BoostDuration = 3.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
     float DefaultForwardThrust = 80.0f;
@@ -55,13 +65,13 @@ public:
     float BoostedForwardThrust = 300.0f;
 
     UPROPERTY(EditAnywhere, Category = "Camera")
-    float RotationStep = 15.0f; // How many degrees each correct answer rotates
+    float RotationStep = 15.0f;
 
     UPROPERTY(EditAnywhere, Category = "Camera")
-    float RotationInterpSpeed = 3.0f; // Higher = faster rotation, lower = slower
+    float RotationInterpSpeed = 3.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float MaxSafeLandingVelocity = -200.0f; // Adjust this to tune difficulty
+    float MaxSafeLandingVelocity = -200.0f;
 
     UPROPERTY(EditAnywhere, Category = "Camera")
     FRotator CameraRotation = FRotator(-15.f, 0.f, 0.f);
@@ -70,22 +80,18 @@ public:
 
     void RotateLeft();
     void RotateRight();
+    void ToggleThrustMode();
+    void ActivateBoost();
+    void AddFuel(float Amount);
+    void StartCrashReplay();
 
     bool bForwardThrustMode = false;
-
     bool bHasLanded = false;
-
-    void ToggleThrustMode();
-
-    float CurrentBoostTimer = 0.0f; // Tracks remaining boost time
     bool bIsBoosting = false;
 
+    float CurrentBoostTimer = 0.0f;
     float LowGravity = -160.0f;
     float HighGravity = -980.0f;
-
-    void ActivateBoost();
-
-    void AddFuel(float Amount);
 
 protected:
     virtual void BeginPlay() override;

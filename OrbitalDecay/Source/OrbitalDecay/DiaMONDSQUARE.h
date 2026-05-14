@@ -16,6 +16,9 @@ struct FObjectPlacementConfig
     UPROPERTY(EditAnywhere)
     UStaticMesh* Mesh = nullptr;
 
+    UPROPERTY(EditAnywhere)
+    TSubclassOf<AActor> ActorClass = nullptr;
+
     UPROPERTY(EditAnywhere, Meta = (ClampMin = 0))
     int32 Count = 10;
 
@@ -72,8 +75,9 @@ private:
     TArray<FVector2D> UV0;
     TArray<FVector> Normals;
     TArray<struct FProcMeshTangent> Tangents;
+    TArray<AActor*> SpawnedActors;
     TArray<UStaticMeshComponent*> SpawnedObjects;
-
+    float RandomOffset = 0.0f;
     void CreateVertices();
     void CreateTriangles();
     void PlaceObjects(const FObjectPlacementConfig& Config); 

@@ -2,8 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
-#include "OrbitalDecayGameMode.generated.h"
 #include "ReplayRecorder.h"
+#include "OrbitalDecayGameMode.generated.h"
 
 UENUM(BlueprintType)
 enum class EGameState : uint8

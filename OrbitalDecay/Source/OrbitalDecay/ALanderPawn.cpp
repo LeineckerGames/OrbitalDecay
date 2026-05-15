@@ -118,7 +118,7 @@ void ALanderPawn::Tick(float DeltaTime)
             AddActorWorldOffset(CurrentVelocity * DeltaTime, true);
         }
 
-        FVector Start = GetActorLocation();
+        FVector Start = Camera->GetComponentLocation();
         FVector End = Start + FVector(0.f, 0.f, -100000.f);
         FHitResult HitResult;
         FCollisionQueryParams Params;
@@ -133,29 +133,40 @@ void ALanderPawn::Tick(float DeltaTime)
             if (HitResult.Distance < 50.0f && !bHasLanded)
             {
                 bHasLanded = true;
-                float ImpactVelocity = CurrentVelocity.Z;
                 CurrentVelocity = FVector::ZeroVector;
                 bIsBoosting = false;
 
-                if (ImpactVelocity <= MaxSafeLandingVelocity)
-                {
-                    if (GEngine)
-                    {
-                        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("CRASHED!"));
-                    }
+                // Lock position at landing point
+                FVector LandedPosition = GetActorLocation();
+                LandedPosition.Z = HitResult.ImpactPoint.Z + 50.0f;
+                SetActorLocation(LandedPosition);
 
-                    FTimerHandle ReplayTimerHandle;
-                    GetWorldTimerManager().SetTimer(ReplayTimerHandle, [this]()
-                    {
-                        StartCrashReplay();
-                    }, 1.5f, false);
+                // Check if we hit the landing pad
+                bool bOnLandingPad = false;
+                if (HitResult.GetActor())
+                {
+                    bOnLandingPad = HitResult.GetActor()->ActorHasTag(FName("LandingPad"));
                 }
-                else
+
+                if (bOnLandingPad)
                 {
                     if (GEngine)
                     {
                         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("LANDED SUCCESSFULLY!"));
                     }
+                }
+                else
+                {
+                    if (GEngine)
+                    {
+                        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("CRASHED! Missed the landing pad!"));
+                    }
+
+                    FTimerHandle ReplayTimerHandle;
+                    GetWorldTimerManager().SetTimer(ReplayTimerHandle, [this]()
+                        {
+                            StartCrashReplay();
+                        }, 1.5f, false);
                 }
             }
         }
@@ -245,18 +256,4 @@ void ALanderPawn::RotateLeft()
 void ALanderPawn::RotateRight()
 {
     TargetRotation.Yaw += RotationStep;
-}
-
-void ALanderPawn::DisablePlayerInput()
-{
-    APlayerController* PC = Cast<APlayerController>(GetController());
-    if (PC)
-    {
-        DisableInput(PC);
-    }
-}
-
-void ALanderPawn::ResetPawn()
-{
-    // Sprint 5 - restore position, velocity, fuel, rotation, bHasLanded
 }

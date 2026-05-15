@@ -73,6 +73,10 @@ public:
     UPROPERTY(EditAnywhere, Category = "Flight")
     float MaxSafeLandingVelocity = -200.0f;
 
+    TSet<AActor*> VisitedPads;
+    int32 PadsLanded = 0;
+    bool bLevelComplete = false;
+
     UPROPERTY(EditAnywhere, Category = "Flight")
     float AirResistance = 3.0f;
 

@@ -66,62 +66,67 @@ void ALanderPawn::Tick(float DeltaTime)
 
     bool bIsReplaying = ReplayRecorder && ReplayRecorder->IsReplaying();
 
-    if (bHasLanded && !bIsReplaying) return;
+    if (bLevelComplete && !bIsReplaying) return;
 
     if (!bIsReplaying)
     {
-        AOrbitalDecayGameMode* MyGameMode = Cast<AOrbitalDecayGameMode>(GetWorld()->GetAuthGameMode());
-        if (MyGameMode)
+        if (!bHasLanded)
         {
-            int32 CurrentLevel = MyGameMode->GlobalLevel;
-            int32 SteppedLevel = (CurrentLevel / 5) * 5;
-            float Alpha = FMath::Clamp((float)(SteppedLevel - 1) / 19.0f, 0.0f, 1.0f);
-            float GravityStrength = FMath::Lerp(LowGravity, HighGravity, Alpha);
-
-            if (bIsBoosting)
+            AOrbitalDecayGameMode* MyGameMode = Cast<AOrbitalDecayGameMode>(GetWorld()->GetAuthGameMode());
+            if (MyGameMode)
             {
-                CurrentBoostTimer -= DeltaTime;
-                if (CurrentBoostTimer <= 0.0f)
-                {
-                    bIsBoosting = false;
-                    CurrentBoostTimer = 0.0f;
-                }
-            }
+                int32 CurrentLevel = MyGameMode->GlobalLevel;
+                int32 SteppedLevel = (CurrentLevel / 5) * 5;
+                float Alpha = FMath::Clamp((float)(SteppedLevel - 1) / 19.0f, 0.0f, 1.0f);
+                float GravityStrength = FMath::Lerp(LowGravity, HighGravity, Alpha);
 
-            if (Fuel > 0.0f)
-            {
-                CurrentVelocity.Z += (GravityStrength + DefaultThrust) * DeltaTime;
-
-                if (bForwardThrustMode)
+                if (bIsBoosting)
                 {
-                    if (bIsBoosting)
+                    CurrentBoostTimer -= DeltaTime;
+                    if (CurrentBoostTimer <= 0.0f)
                     {
+                        bIsBoosting = false;
+                        CurrentBoostTimer = 0.0f;
+                    }
+                }
+
+                if (Fuel > 0.0f)
+                {
+                    CurrentVelocity.Z += (GravityStrength + DefaultThrust) * DeltaTime;
+
+                    if (bForwardThrustMode)
+                    {
+                        // Always apply base forward thrust
                         FVector ForwardDir = GetActorForwardVector();
-                        CurrentVelocity += ForwardDir * BoostedForwardThrust * DeltaTime;
+                        CurrentVelocity += ForwardDir * DefaultForwardThrust * DeltaTime;  // <-- add this
+
+                        if (bIsBoosting)
+                        {
+                            CurrentVelocity += ForwardDir * BoostedForwardThrust * DeltaTime;
+                        }
+
+                        CurrentVelocity.X = FMath::FInterpTo(CurrentVelocity.X, 0.0f, DeltaTime, AirResistance);
+                        CurrentVelocity.Y = FMath::FInterpTo(CurrentVelocity.Y, 0.0f, DeltaTime, AirResistance);
+                    }
+                    else
+                    {
+                        if (bIsBoosting)
+                        {
+                            CurrentVelocity.Z += BoostedThrust * DeltaTime;
+                        }
                     }
 
-                    // Apply drag to horizontal velocity only
-                    CurrentVelocity.X = FMath::FInterpTo(CurrentVelocity.X, 0.0f, DeltaTime, AirResistance);
-                    CurrentVelocity.Y = FMath::FInterpTo(CurrentVelocity.Y, 0.0f, DeltaTime, AirResistance);
+                    float DrainRate = bIsBoosting ? FuelDrainBoost : FuelDrainIdle;
+                    Fuel -= DrainRate * DeltaTime;
+                    Fuel = FMath::Max(Fuel, 0.0f);
                 }
                 else
                 {
-                    if (bIsBoosting)
-                    {
-                        CurrentVelocity.Z += BoostedThrust * DeltaTime;
-                    }
+                    CurrentVelocity.Z += GravityStrength * DeltaTime;
                 }
 
-                float DrainRate = bIsBoosting ? FuelDrainBoost : FuelDrainIdle;
-                Fuel -= DrainRate * DeltaTime;
-                Fuel = FMath::Max(Fuel, 0.0f);
+                AddActorWorldOffset(CurrentVelocity * DeltaTime, true);
             }
-            else
-            {
-                CurrentVelocity.Z += GravityStrength * DeltaTime;
-            }
-
-            AddActorWorldOffset(CurrentVelocity * DeltaTime, true);
         }
 
         FVector Start = Camera->GetComponentLocation();
@@ -142,12 +147,10 @@ void ALanderPawn::Tick(float DeltaTime)
                 CurrentVelocity = FVector::ZeroVector;
                 bIsBoosting = false;
 
-                // Lock position at landing point
                 FVector LandedPosition = GetActorLocation();
                 LandedPosition.Z = HitResult.ImpactPoint.Z + 50.0f;
                 SetActorLocation(LandedPosition);
 
-                // Check if we hit the landing pad
                 bool bOnLandingPad = false;
                 if (HitResult.GetActor())
                 {
@@ -156,17 +159,41 @@ void ALanderPawn::Tick(float DeltaTime)
 
                 if (bOnLandingPad)
                 {
-                    if (GEngine)
+                    AActor* PadActor = HitResult.GetActor();
+
+                    if (!VisitedPads.Contains(PadActor))
                     {
-                        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("LANDED SUCCESSFULLY!"));
+                        VisitedPads.Add(PadActor);
+                        PadsLanded++;
+
+                        if (GEngine)
+                            GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green,
+                                FString::Printf(TEXT("LANDED SUCCESSFULLY! (%d/3)"), PadsLanded));
+
+                        if (PadsLanded >= 3)
+                        {
+                            bLevelComplete = true;
+                            // trigger win condition
+                        }
                     }
+                    else
+                    {
+                        if (GEngine)
+                            GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, TEXT("Already visited this pad!"));
+                    }
+
+                    // Relaunch regardless of whether it was a new pad
+                    FTimerHandle RelaunchTimer;
+                    GetWorldTimerManager().SetTimer(RelaunchTimer, [this]()
+                        {
+                            bHasLanded = false;
+                            CurrentVelocity.Z = 300.0f; // stronger nudge to fully clear the pad
+                        }, 1.5f, false);
                 }
                 else
                 {
                     if (GEngine)
-                    {
                         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("CRASHED! Missed the landing pad!"));
-                    }
 
                     FTimerHandle ReplayTimerHandle;
                     GetWorldTimerManager().SetTimer(ReplayTimerHandle, [this]()

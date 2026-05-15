@@ -94,9 +94,15 @@ void ALanderPawn::Tick(float DeltaTime)
 
                 if (bForwardThrustMode)
                 {
-                    FVector ForwardDir = GetActorForwardVector();
-                    float ForwardThrust = bIsBoosting ? BoostedForwardThrust : DefaultForwardThrust;
-                    CurrentVelocity += ForwardDir * ForwardThrust * DeltaTime;
+                    if (bIsBoosting)
+                    {
+                        FVector ForwardDir = GetActorForwardVector();
+                        CurrentVelocity += ForwardDir * BoostedForwardThrust * DeltaTime;
+                    }
+
+                    // Apply drag to horizontal velocity only
+                    CurrentVelocity.X = FMath::FInterpTo(CurrentVelocity.X, 0.0f, DeltaTime, AirResistance);
+                    CurrentVelocity.Y = FMath::FInterpTo(CurrentVelocity.Y, 0.0f, DeltaTime, AirResistance);
                 }
                 else
                 {

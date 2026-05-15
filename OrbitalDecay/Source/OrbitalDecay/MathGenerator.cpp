@@ -4,7 +4,7 @@ FMathQuestion UMathGenerator::GenerateQuestion(FString Type, int32 Level)
 {
     FMathQuestion NewQ;
 
-    int32 MaxRange = FMath::Max(1, Level * 10);
+    int32 MaxRange = FMath::RoundToInt(FMath::Lerp(5.f, 100.f, (float)(Level - 1) / 19.0f));
     int32 A = FMath::RandRange(1, MaxRange);
     int32 B = FMath::RandRange(1, MaxRange);
 
@@ -22,7 +22,8 @@ FMathQuestion UMathGenerator::GenerateQuestion(FString Type, int32 Level)
     }
     else if (Type == "m")
     {
-        B = FMath::RandRange(1, FMath::Min(Level + 2, 12));
+        A = FMath::RandRange(1, FMath::Min(MaxRange, 12));
+        B = FMath::RandRange(1, FMath::Min(FMath::RoundToInt(FMath::Lerp(2.f, 12.f, (float)(Level - 1) / 19.0f)), 12));
         NewQ.CorrectAnswer = A * B;
         NewQ.QuestionText = FString::Printf(TEXT("%d x %d = "), A, B);
     }

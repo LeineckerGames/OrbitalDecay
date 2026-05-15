@@ -47,16 +47,16 @@ public:
     float DefaultThrust = 100.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float BoostedThrust = 300.0f;
+    float BoostedThrust = 400.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
     float FuelDrainIdle = 1.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float FuelDrainBoost = 5.0f;
+    float FuelDrainBoost = 3.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float BoostDuration = 3.0f;
+    float BoostDuration = 1.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
     float DefaultForwardThrust = 80.0f;
@@ -73,7 +73,11 @@ public:
     UPROPERTY(EditAnywhere, Category = "Flight")
     float MaxSafeLandingVelocity = -200.0f;
 
+    UPROPERTY(EditAnywhere, Category = "Flight")
+    float AirResistance = 3.0f;
+
     UPROPERTY(EditAnywhere, Category = "Camera")
+
     FRotator CameraRotation = FRotator(-15.f, 0.f, 0.f);
 
     FRotator TargetRotation = FRotator::ZeroRotator;
@@ -93,7 +97,7 @@ public:
 
     float CurrentBoostTimer = 0.0f;
     float LowGravity = -160.0f;
-    float HighGravity = -980.0f;
+    float HighGravity = -500.0f;
 
 protected:
     virtual void BeginPlay() override;

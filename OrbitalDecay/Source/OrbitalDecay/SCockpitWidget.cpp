@@ -2,6 +2,7 @@
 #include "MyHUD.h"
 #include "ALanderPawn.h"
 #include "OrbitalDecayGameMode.h"
+#include "EngineUtils.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SEditableText.h"
@@ -13,25 +14,266 @@
 #include "Widgets/Images/SImage.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Containers/Ticker.h"
+#include "Rendering/DrawElements.h"
 
-// ─── Color palette ───────────────────────────────────────────────
-static const FLinearColor C_PanelBg = FLinearColor(0.05f, 0.06f, 0.08f, 1.f);   // dark navy
-static const FLinearColor C_PanelBorder = FLinearColor(0.15f, 0.20f, 0.25f, 1.f);   // steel blue
-static const FLinearColor C_WindowBg = FLinearColor(0.02f, 0.04f, 0.06f, 0.85f); // near black
-static const FLinearColor C_FuelFull = FLinearColor(0.10f, 0.90f, 0.20f, 1.f);   // green
-static const FLinearColor C_FuelLow = FLinearColor(0.95f, 0.20f, 0.10f, 1.f);   // red
-static const FLinearColor C_DisplayBg = FLinearColor(0.02f, 0.08f, 0.04f, 1.f);   // dark green screen
-static const FLinearColor C_DisplayText = FLinearColor(0.20f, 1.00f, 0.30f, 1.f);   // phosphor green
-static const FLinearColor C_ButtonBg = FLinearColor(0.10f, 0.12f, 0.15f, 1.f);   // dark button
-static const FLinearColor C_ButtonText = FLinearColor(0.85f, 0.90f, 1.00f, 1.f);   // light blue-white
-static const FLinearColor C_MinimapBg = FLinearColor(0.03f, 0.06f, 0.03f, 1.f);   // dark radar green
-static const FLinearColor C_MinimapGrid = FLinearColor(0.10f, 0.35f, 0.10f, 1.f);   // radar grid
-static const FLinearColor C_AccentGreen = FLinearColor(0.10f, 0.90f, 0.20f, 1.f);   // bright green
-static const FLinearColor C_AccentAmber = FLinearColor(1.00f, 0.60f, 0.00f, 1.f);   // amber warning
+// ─── Color palette ────────────────────────────────────────────────
+static const FLinearColor C_PanelBg = FLinearColor(0.05f, 0.06f, 0.08f, 1.f);
+static const FLinearColor C_PanelBorder = FLinearColor(0.15f, 0.20f, 0.25f, 1.f);
+static const FLinearColor C_FuelFull = FLinearColor(0.10f, 0.90f, 0.20f, 1.f);
+static const FLinearColor C_FuelLow = FLinearColor(0.95f, 0.20f, 0.10f, 1.f);
+static const FLinearColor C_DisplayBg = FLinearColor(0.02f, 0.08f, 0.04f, 1.f);
+static const FLinearColor C_DisplayText = FLinearColor(0.20f, 1.00f, 0.30f, 1.f);
+static const FLinearColor C_ButtonBg = FLinearColor(0.10f, 0.12f, 0.15f, 1.f);
+static const FLinearColor C_ButtonText = FLinearColor(0.85f, 0.90f, 1.00f, 1.f);
+static const FLinearColor C_MinimapBg = FLinearColor(0.06f, 0.07f, 0.06f, 1.f);
+static const FLinearColor C_AccentGreen = FLinearColor(0.10f, 0.90f, 0.20f, 1.f);
+static const FLinearColor C_AccentAmber = FLinearColor(1.00f, 0.60f, 0.00f, 1.f);
 static const FLinearColor C_White = FLinearColor::White;
 static const FLinearColor C_Transparent = FLinearColor(0, 0, 0, 0);
 
-// ─── Construct ───────────────────────────────────────────────────
+// Minimap colors
+static const FLinearColor C_MapAxis = FLinearColor(0.10f, 0.90f, 0.20f, 0.60f); // green axes
+static const FLinearColor C_ShipGreen = FLinearColor(0.10f, 0.90f, 0.20f, 1.f);   // ship arrow
+static const FLinearColor C_PadNormal = FLinearColor(0.90f, 0.10f, 0.10f, 1.f);   // red pad
+static const FLinearColor C_PadAbove = FLinearColor(1.00f, 0.85f, 0.00f, 1.f);   // yellow when above
+static const FLinearColor C_RingColor = FLinearColor(0.10f, 0.35f, 0.10f, 0.50f); // dim ring
+
+// ═══════════════════════════════════════════════════════════════════
+// SMinimapWidget — Construct
+// ═══════════════════════════════════════════════════════════════════
+void SMinimapWidget::Construct(const FArguments& InArgs)
+{
+    MyOwnerHUD = InArgs._OwnerHUD;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SMinimapWidget — OnPaint
+//
+// Coordinate system
+// ─────────────────
+// UE world:    X=forward, Y=right, Z=up
+// Ship-local:  rotate world offsets by -ShipYaw so ship-forward
+//              always maps to screen-up (positive Y axis on map).
+// Screen:      +X=right, +Y=down
+//
+// Ship-local → screen:
+//   screenX = MapCenter.X + ( LocalY / WorldRange) * MapRadius
+//   screenY = MapCenter.Y + (-LocalX / WorldRange) * MapRadius
+//   (forward=LocalX+ → screen up, right=LocalY+ → screen right)
+// ═══════════════════════════════════════════════════════════════════
+int32 SMinimapWidget::OnPaint(
+    const FPaintArgs& Args,
+    const FGeometry& AllottedGeometry,
+    const FSlateRect& MyCullingRect,
+    FSlateWindowElementList& OutDrawElements,
+    int32                    LayerId,
+    const FWidgetStyle& InWidgetStyle,
+    bool                     bParentEnabled) const
+{
+    const FSlateBrush* White = FCoreStyle::Get().GetBrush("WhiteBrush");
+    const FVector2D    Size = AllottedGeometry.GetLocalSize();
+    const FVector2D    Ctr = Size * 0.5f;
+    const float        R = FMath::Min(Size.X, Size.Y) * 0.5f - 2.f;
+
+    // World units visible to the edge of the radar circle
+    const float WorldRange = 2500.f;
+    // XY distance within which pad turns yellow
+    const float AboveThresh = 350.f;
+    // Pad circle radius in screen pixels
+    const float PadRadius = 8.f;
+
+    // ── 0. Dark gray background ───────────────────────────────────
+    FSlateDrawElement::MakeBox(
+        OutDrawElements, LayerId,
+        AllottedGeometry.ToPaintGeometry(Size, FSlateLayoutTransform()),
+        White, ESlateDrawEffect::None, C_MinimapBg);
+    ++LayerId;
+
+    // ── 1. Green X and Y axis lines (fixed, never move) ──────────
+    // Y axis — vertical line through center (ship forward = up)
+    FSlateDrawElement::MakeBox(
+        OutDrawElements, LayerId,
+        AllottedGeometry.ToPaintGeometry(
+            FVector2D(1.f, Size.Y),
+            FSlateLayoutTransform(FVector2D(Ctr.X, 0.f))),
+        White, ESlateDrawEffect::None, C_MapAxis);
+
+    // X axis — horizontal line through center
+    FSlateDrawElement::MakeBox(
+        OutDrawElements, LayerId,
+        AllottedGeometry.ToPaintGeometry(
+            FVector2D(Size.X, 1.f),
+            FSlateLayoutTransform(FVector2D(0.f, Ctr.Y))),
+        White, ESlateDrawEffect::None, C_MapAxis);
+    ++LayerId;
+
+    // ── 2. Dashed range ring ──────────────────────────────────────
+    {
+        const int32 Segs = 48;
+        const float RingR = R;
+        for (int32 i = 0; i < Segs; ++i)
+        {
+            if (i % 3 == 2) continue; // skip every 3rd → dashed
+            const float A = (float(i) / Segs) * 2.f * PI;
+            FSlateDrawElement::MakeBox(
+                OutDrawElements, LayerId,
+                AllottedGeometry.ToPaintGeometry(
+                    FVector2D(3.f, 3.f),
+                    FSlateLayoutTransform(FVector2D(
+                        Ctr.X + RingR * FMath::Cos(A) - 1.5f,
+                        Ctr.Y + RingR * FMath::Sin(A) - 1.5f))),
+                White, ESlateDrawEffect::None, C_RingColor);
+        }
+    }
+    ++LayerId;
+
+    // ── 3. Bail early if world not ready ─────────────────────────
+    if (!MyOwnerHUD.IsValid()) return LayerId;
+    ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+    if (!Pawn) return LayerId;
+    UWorld* World = Pawn->GetWorld();
+    if (!World) return LayerId;
+
+    const FVector PawnPos = Pawn->GetActorLocation();
+    const float   YawDeg = Pawn->GetActorRotation().Yaw;
+    const float   YawRad = FMath::DegreesToRadians(-YawDeg);
+    const float   CosYaw = FMath::Cos(YawRad);
+    const float   SinYaw = FMath::Sin(YawRad);
+
+    // Helper: world position → minimap screen position
+    auto WorldToMap = [&](const FVector& WPos) -> FVector2D
+        {
+            const float DX = WPos.X - PawnPos.X;
+            const float DY = WPos.Y - PawnPos.Y;
+            const float LX = CosYaw * DX + SinYaw * DY; // forward
+            const float LY = -SinYaw * DX + CosYaw * DY; // right
+            return FVector2D(
+                Ctr.X + (LY / WorldRange) * R,
+                Ctr.Y + (-LX / WorldRange) * R);
+        };
+
+    // ── 4. Landing pads as circles ────────────────────────────────
+    // Detect BP_LandingPad actors by class name
+    for (TActorIterator<AActor> It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (!Actor) continue;
+
+        // Match any actor whose class name contains "LandingPad"
+        const FString ClassName = Actor->GetClass()->GetName();
+        if (!ClassName.Contains(TEXT("LandingPad"))) continue;
+
+        const FVector  PadWorld = Actor->GetActorLocation();
+        const FVector2D PadScreen = WorldToMap(PadWorld);
+
+        // Is pad within the visible radar area?
+        const float DistFromCtr = FVector2D::Distance(PadScreen, Ctr);
+        if (DistFromCtr > R - PadRadius)
+        {
+            // Off edge — draw a small edge indicator instead
+            FVector2D Dir = (PadScreen - Ctr).GetSafeNormal();
+            FVector2D EdgePos = Ctr + Dir * (R - 4.f);
+            FSlateDrawElement::MakeBox(
+                OutDrawElements, LayerId,
+                AllottedGeometry.ToPaintGeometry(
+                    FVector2D(5.f, 5.f),
+                    FSlateLayoutTransform(EdgePos - FVector2D(2.5f, 2.5f))),
+                White, ESlateDrawEffect::None, C_PadNormal);
+            continue;
+        }
+
+        // XY distance to decide color
+        const float XYDist = FVector2D::Distance(
+            FVector2D(PawnPos.X, PawnPos.Y),
+            FVector2D(PadWorld.X, PadWorld.Y));
+        const bool bAbove = XYDist < AboveThresh;
+        const FLinearColor PadColor = bAbove ? C_PadAbove : C_PadNormal;
+
+        // Draw filled circle using small overlapping boxes (16 segments)
+        // This approximates a circle without needing Slate circle primitives
+        const int32 CircleSegs = 16;
+        for (int32 s = 0; s < CircleSegs; ++s)
+        {
+            const float A0 = (float(s) / CircleSegs) * 2.f * PI;
+            const float A1 = (float(s + 1) / CircleSegs) * 2.f * PI;
+            const float MidA = (A0 + A1) * 0.5f;
+
+            // Each segment: a thin box at the angle
+            const float SegLen = PadRadius * 2.f * FMath::Sin(PI / CircleSegs) + 1.f;
+            const FVector2D SegPos(
+                PadScreen.X + (PadRadius - 1.f) * FMath::Cos(MidA),
+                PadScreen.Y + (PadRadius - 1.f) * FMath::Sin(MidA));
+
+            FSlateDrawElement::MakeBox(
+                OutDrawElements, LayerId,
+                AllottedGeometry.ToPaintGeometry(
+                    FVector2D(SegLen, SegLen),
+                    FSlateLayoutTransform(SegPos - FVector2D(SegLen * 0.5f))),
+                White, ESlateDrawEffect::None, PadColor);
+        }
+
+        // Solid center fill for the circle
+        FSlateDrawElement::MakeBox(
+            OutDrawElements, LayerId,
+            AllottedGeometry.ToPaintGeometry(
+                FVector2D(PadRadius * 1.2f, PadRadius * 1.2f),
+                FSlateLayoutTransform(PadScreen - FVector2D(PadRadius * 0.6f))),
+            White, ESlateDrawEffect::None, PadColor);
+    }
+    ++LayerId;
+
+    // ── 5. Ship triangle — fixed at center, always pointing up ───
+    //
+    // Triangle vertices (screen coords, origin = Ctr):
+    //   Nose tip:      (  0, -10)   ← top (up = ship forward)
+    //   Left wing:     ( -7,  +6)
+    //   Right wing:    ( +7,  +6)
+    //
+    // Drawn as 3 filled boxes approximating the triangle shape:
+    //   • Fuselage:   2px wide, 14px tall
+    //   • Left wing:  6px wide,  3px tall, offset left
+    //   • Right wing: 6px wide,  3px tall, offset right
+    {
+        // Fuselage (vertical bar)
+        FSlateDrawElement::MakeBox(
+            OutDrawElements, LayerId,
+            AllottedGeometry.ToPaintGeometry(
+                FVector2D(3.f, 14.f),
+                FSlateLayoutTransform(Ctr + FVector2D(-1.5f, -10.f))),
+            White, ESlateDrawEffect::None, C_ShipGreen);
+
+        // Left wing
+        FSlateDrawElement::MakeBox(
+            OutDrawElements, LayerId,
+            AllottedGeometry.ToPaintGeometry(
+                FVector2D(7.f, 3.f),
+                FSlateLayoutTransform(Ctr + FVector2D(-8.f, 2.f))),
+            White, ESlateDrawEffect::None, C_ShipGreen);
+
+        // Right wing
+        FSlateDrawElement::MakeBox(
+            OutDrawElements, LayerId,
+            AllottedGeometry.ToPaintGeometry(
+                FVector2D(7.f, 3.f),
+                FSlateLayoutTransform(Ctr + FVector2D(1.f, 2.f))),
+            White, ESlateDrawEffect::None, C_ShipGreen);
+
+        // Nose tip dot
+        FSlateDrawElement::MakeBox(
+            OutDrawElements, LayerId,
+            AllottedGeometry.ToPaintGeometry(
+                FVector2D(3.f, 3.f),
+                FSlateLayoutTransform(Ctr + FVector2D(-1.5f, -11.f))),
+            White, ESlateDrawEffect::None, C_ShipGreen);
+    }
+    ++LayerId;
+
+    return LayerId;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SCockpitWidget — Construct
+// ═══════════════════════════════════════════════════════════════════
 void SCockpitWidget::Construct(const FArguments& InArgs)
 {
     MyOwnerHUD = InArgs._OwnerHUD;
@@ -40,39 +282,28 @@ void SCockpitWidget::Construct(const FArguments& InArgs)
 
     ChildSlot
         [
-            // Root: full screen vertical split
             SNew(SVerticalBox)
 
-                // TOP: Window area (60% of screen height)
                 + SVerticalBox::Slot()
                 .FillHeight(0.60f)
-                [
-                    BuildWindowArea()
-                ]
+                [BuildWindowArea()]
 
-                // BOTTOM: Control panels (40% of screen height)
                 + SVerticalBox::Slot()
                 .FillHeight(0.40f)
-                [
-                    BuildBottomPanel()
-                ]
+                [BuildBottomPanel()]
         ];
 }
 
-// ─── Window Area ─────────────────────────────────────────────────
+// ─── Window Area ──────────────────────────────────────────────────
 TSharedRef<SWidget> SCockpitWidget::BuildWindowArea()
 {
     return SNew(SOverlay)
 
-        // Fully transparent window - game world shows through
         + SOverlay::Slot()
         .HAlign(HAlign_Fill)
         .VAlign(VAlign_Fill)
-        [
-            SNew(SSpacer)
-        ]
+        [SNew(SSpacer)]
 
-        // Result feedback text at bottom of window
         + SOverlay::Slot()
         .HAlign(HAlign_Center)
         .VAlign(VAlign_Bottom)
@@ -95,29 +326,14 @@ TSharedRef<SWidget> SCockpitWidget::BuildBottomPanel()
         [
             SNew(SHorizontalBox)
 
-                // LEFT panel (25%)
-                + SHorizontalBox::Slot()
-                .FillWidth(0.25f)
-                .Padding(4.f)
-                [
-                    BuildLeftPanel()
-                ]
+                + SHorizontalBox::Slot().FillWidth(0.25f).Padding(4.f)
+                [BuildLeftPanel()]
 
-                // CENTER panel (50%)
-                + SHorizontalBox::Slot()
-                .FillWidth(0.50f)
-                .Padding(4.f)
-                [
-                    BuildCenterPanel()
-                ]
+                + SHorizontalBox::Slot().FillWidth(0.50f).Padding(4.f)
+                [BuildCenterPanel()]
 
-                // RIGHT panel (25%)
-                + SHorizontalBox::Slot()
-                .FillWidth(0.25f)
-                .Padding(4.f)
-                [
-                    BuildRightPanel()
-                ]
+                + SHorizontalBox::Slot().FillWidth(0.25f).Padding(4.f)
+                [BuildRightPanel()]
         ];
 }
 
@@ -131,11 +347,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildLeftPanel()
         [
             SNew(SVerticalBox)
 
-                // FUEL label
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .HAlign(HAlign_Center)
-                .Padding(0, 4, 0, 2)
+                + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 4, 0, 2)
                 [
                     SNew(STextBlock)
                         .Text(FText::FromString(TEXT("FUEL")))
@@ -143,33 +355,19 @@ TSharedRef<SWidget> SCockpitWidget::BuildLeftPanel()
                         .ColorAndOpacity(C_AccentGreen)
                 ]
 
-                // Fuel gauge
-                + SVerticalBox::Slot()
-                .FillHeight(1.f)
-                .Padding(0, 2)
-                [
-                    BuildFuelGauge()
-                ]
+                + SVerticalBox::Slot().FillHeight(1.f).Padding(0, 2)
+                [BuildFuelGauge()]
 
-                // Divider
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .Padding(0, 6)
+                + SVerticalBox::Slot().AutoHeight().Padding(0, 6)
                 [
                     SNew(SBorder)
                         .BorderBackgroundColor(C_PanelBorder)
                         .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
                         .Padding(FMargin(0, 1))
-                        [
-                            SNew(SSpacer)
-                        ]
+                        [SNew(SSpacer)]
                 ]
 
-            // THROTTLE label
-            + SVerticalBox::Slot()
-                .AutoHeight()
-                .HAlign(HAlign_Center)
-                .Padding(0, 2)
+            + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 2)
                 [
                     SNew(STextBlock)
                         .Text(FText::FromString(TEXT("THROTTLE")))
@@ -177,32 +375,17 @@ TSharedRef<SWidget> SCockpitWidget::BuildLeftPanel()
                         .ColorAndOpacity(C_AccentAmber)
                 ]
 
-                // Throttle indicator
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .HAlign(HAlign_Center)
-                .Padding(0, 4)
-                [
-                    BuildThrottleIndicator()
-                ]
+                + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 4)
+                [BuildThrottleIndicator()]
 
-                // Thrust switch
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .HAlign(HAlign_Center)
-                .Padding(0, 4)
-                [
-                    BuildThrustSwitch()
-                ]
+                + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 4)
+                [BuildThrustSwitch()]
         ];
 }
 
 // ─── Fuel Gauge ───────────────────────────────────────────────────
 TSharedRef<SWidget> SCockpitWidget::BuildFuelGauge()
 {
-    // Vertical bar gauge - fill from bottom
-    // Placeholder: colored SBorder that scales with fuel level
-    // Real art: fuel bar frame PNG + fill texture will slot in here
     return SNew(SBox)
         .WidthOverride(40.f)
         [
@@ -213,7 +396,6 @@ TSharedRef<SWidget> SCockpitWidget::BuildFuelGauge()
                 [
                     SNew(SOverlay)
 
-                        // Background track
                         + SOverlay::Slot()
                         [
                             SNew(SBorder)
@@ -221,7 +403,6 @@ TSharedRef<SWidget> SCockpitWidget::BuildFuelGauge()
                                 .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
                         ]
 
-                        // Fill bar - driven by fuel level
                         + SOverlay::Slot()
                         .VAlign(VAlign_Bottom)
                         [
@@ -230,11 +411,11 @@ TSharedRef<SWidget> SCockpitWidget::BuildFuelGauge()
                                     {
                                         if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
                                         {
-                                            ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                                            if (Pawn)
+                                            ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                                            if (P)
                                             {
-                                                float FuelPct = FMath::Clamp(Pawn->Fuel / 1000.f, 0.f, 1.f);
-                                                return FOptionalSize(FuelPct * 150.f);
+                                                float Pct = FMath::Clamp(P->Fuel / 1000.f, 0.f, 1.f);
+                                                return FOptionalSize(Pct * 150.f);
                                             }
                                         }
                                         return FOptionalSize(150.f);
@@ -246,11 +427,8 @@ TSharedRef<SWidget> SCockpitWidget::BuildFuelGauge()
                                             {
                                                 if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
                                                 {
-                                                    ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                                                    if (Pawn)
-                                                    {
-                                                        return Pawn->Fuel < 100.f ? C_FuelLow : C_FuelFull;
-                                                    }
+                                                    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                                                    if (P) return P->Fuel < 100.f ? C_FuelLow : C_FuelFull;
                                                 }
                                                 return C_FuelFull;
                                             })
@@ -263,8 +441,6 @@ TSharedRef<SWidget> SCockpitWidget::BuildFuelGauge()
 // ─── Throttle Indicator ───────────────────────────────────────────
 TSharedRef<SWidget> SCockpitWidget::BuildThrottleIndicator()
 {
-    // Placeholder: colored circle/box showing ON or OFF
-    // Real art: thruster ON/OFF icon PNGs will replace this
     return SNew(SBox)
         .WidthOverride(36.f)
         .HeightOverride(36.f)
@@ -275,16 +451,24 @@ TSharedRef<SWidget> SCockpitWidget::BuildThrottleIndicator()
                     {
                         if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
                         {
-                            ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                            if (Pawn) return Pawn->Fuel > 0.f ? C_AccentGreen : C_FuelLow;
+                            ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                            if (P) return P->bIsBoosting ? C_AccentGreen : C_PanelBorder;
                         }
-                        return C_AccentGreen;
+                        return C_PanelBorder;
                     })
                 [
                     SNew(STextBlock)
-                        .Text(FText::FromString(TEXT("ON")))
+                        .Text_Lambda([this]() -> FText
+                            {
+                                if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                                {
+                                    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                                    if (P) return FText::FromString(P->bIsBoosting ? TEXT("ON") : TEXT("OFF"));
+                                }
+                                return FText::FromString(TEXT("OFF"));
+                            })
                         .Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
-                        .ColorAndOpacity(C_PanelBg)
+                        .ColorAndOpacity(C_White)
                         .Justification(ETextJustify::Center)
                 ]
         ];
@@ -313,9 +497,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildThrustSwitch()
         [
             SNew(SVerticalBox)
 
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .HAlign(HAlign_Center)
+                + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
                 [
                     SNew(STextBlock)
                         .Text(FText::FromString(TEXT("VERTICAL")))
@@ -332,14 +514,9 @@ TSharedRef<SWidget> SCockpitWidget::BuildThrustSwitch()
                             })
                 ]
 
-            + SVerticalBox::Slot()
-                .AutoHeight()
-                .HAlign(HAlign_Center)
-                .Padding(0, 2)
+            + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 2)
                 [
-                    SNew(SBox)
-                        .WidthOverride(20.f)
-                        .HeightOverride(40.f)
+                    SNew(SBox).WidthOverride(20.f).HeightOverride(40.f)
                         [
                             SNew(SOverlay)
 
@@ -350,11 +527,9 @@ TSharedRef<SWidget> SCockpitWidget::BuildThrustSwitch()
                                         .BorderBackgroundColor(C_PanelBorder)
                                 ]
 
-                                + SOverlay::Slot()
-                                .VAlign(VAlign_Top)
+                                + SOverlay::Slot().VAlign(VAlign_Top)
                                 [
-                                    SNew(SBox)
-                                        .HeightOverride(18.f)
+                                    SNew(SBox).HeightOverride(18.f)
                                         [
                                             SNew(SBorder)
                                                 .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
@@ -371,11 +546,9 @@ TSharedRef<SWidget> SCockpitWidget::BuildThrustSwitch()
                                         ]
                                 ]
 
-                            + SOverlay::Slot()
-                                .VAlign(VAlign_Bottom)
+                            + SOverlay::Slot().VAlign(VAlign_Bottom)
                                 [
-                                    SNew(SBox)
-                                        .HeightOverride(18.f)
+                                    SNew(SBox).HeightOverride(18.f)
                                         [
                                             SNew(SBorder)
                                                 .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
@@ -394,9 +567,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildThrustSwitch()
                         ]
                 ]
 
-            + SVerticalBox::Slot()
-                .AutoHeight()
-                .HAlign(HAlign_Center)
+            + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
                 [
                     SNew(STextBlock)
                         .Text(FText::FromString(TEXT("FORWARD")))
@@ -425,28 +596,17 @@ TSharedRef<SWidget> SCockpitWidget::BuildCenterPanel()
         [
             SNew(SVerticalBox)
 
-                // Computer display top
-                + SVerticalBox::Slot()
-                .FillHeight(0.35f)
-                .Padding(0, 0, 0, 6)
-                [
-                    BuildComputerDisplay()
-                ]
+                + SVerticalBox::Slot().FillHeight(0.35f).Padding(0, 0, 0, 6)
+                [BuildComputerDisplay()]
 
-                // Keypad bottom
-                + SVerticalBox::Slot()
-                .FillHeight(0.65f)
-                [
-                    BuildKeypad()
-                ]
+                + SVerticalBox::Slot().FillHeight(0.65f)
+                [BuildKeypad()]
         ];
 }
 
 // ─── Computer Display ─────────────────────────────────────────────
 TSharedRef<SWidget> SCockpitWidget::BuildComputerDisplay()
 {
-    // Placeholder: dark green screen with phosphor text
-    // Real art: computer screen background + terminal frame PNG
     return SNew(SBorder)
         .BorderBackgroundColor(C_PanelBorder)
         .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
@@ -459,11 +619,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildComputerDisplay()
                 [
                     SNew(SVerticalBox)
 
-                        // Math question
-                        + SVerticalBox::Slot()
-                        .FillHeight(1.f)
-                        .VAlign(VAlign_Center)
-                        .HAlign(HAlign_Center)
+                        + SVerticalBox::Slot().FillHeight(1.f).VAlign(VAlign_Center).HAlign(HAlign_Center)
                         [
                             SNew(STextBlock)
                                 .Font(FCoreStyle::GetDefaultFontStyle("Bold", 32))
@@ -480,13 +636,9 @@ TSharedRef<SWidget> SCockpitWidget::BuildComputerDisplay()
                                     })
                         ]
 
-                    // Answer input
-                    + SVerticalBox::Slot()
-                        .AutoHeight()
-                        .HAlign(HAlign_Center)
+                    + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
                         [
-                            SNew(SBox)
-                                .WidthOverride(200.f)
+                            SNew(SBox).WidthOverride(200.f)
                                 [
                                     SAssignNew(AnswerInputBox, SEditableText)
                                         .HintText(FText::FromString(TEXT("_ _ _")))
@@ -506,8 +658,6 @@ TSharedRef<SWidget> SCockpitWidget::BuildComputerDisplay()
 // ─── Keypad ───────────────────────────────────────────────────────
 TSharedRef<SWidget> SCockpitWidget::BuildKeypad()
 {
-    // 4 rows: [7 8 9] [4 5 6] [1 2 3] [0 ENTER]
-    // Real art: button texture + pressed texture will replace colored boxes
     return SNew(SBorder)
         .BorderBackgroundColor(C_PanelBorder)
         .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
@@ -571,18 +721,18 @@ TSharedRef<SWidget> SCockpitWidget::BuildKeypadButton(FString Label)
 // ─── Keypad Click Handler ─────────────────────────────────────────
 FReply SCockpitWidget::OnKeypadButtonClicked(FString Label)
 {
+    if (!bInputEnabled) return FReply::Handled();
+
     if (Label == "ENTER")
     {
         CheckAnswer();
         return FReply::Handled();
     }
 
-    // Start a question if none active
     if (!MyOwnerHUD.IsValid()) return FReply::Unhandled();
 
     if (!MyOwnerHUD->bQuestionActive)
     {
-        // Default to addition if no question active
         AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
             MyOwnerHUD->GetWorld()->GetAuthGameMode());
         int32 Level = GM ? GM->GlobalLevel : 1;
@@ -599,10 +749,8 @@ void SCockpitWidget::AppendToInput(FString Character)
 {
     if (!AnswerInputBox.IsValid()) return;
     FString Current = AnswerInputBox->GetText().ToString();
-    if (Current.Len() < 6) // max 6 digits
-    {
+    if (Current.Len() < 6)
         AnswerInputBox->SetText(FText::FromString(Current + Character));
-    }
 }
 
 // ─── Right Panel ──────────────────────────────────────────────────
@@ -615,30 +763,17 @@ TSharedRef<SWidget> SCockpitWidget::BuildRightPanel()
         [
             SNew(SVerticalBox)
 
-                // Minimap top
-                + SVerticalBox::Slot()
-                .FillHeight(0.60f)
-                .HAlign(HAlign_Center)
-                .Padding(0, 4)
-                [
-                    BuildMinimap()
-                ]
+                + SVerticalBox::Slot().FillHeight(0.60f).HAlign(HAlign_Center).Padding(0, 4)
+                [BuildMinimap()]
 
-                // Altitude + speed bottom
-                + SVerticalBox::Slot()
-                .FillHeight(0.40f)
-                .Padding(0, 4)
-                [
-                    BuildAltitudePanel()
-                ]
+                + SVerticalBox::Slot().FillHeight(0.40f).Padding(0, 4)
+                [BuildAltitudePanel()]
         ];
 }
 
 // ─── Minimap ──────────────────────────────────────────────────────
 TSharedRef<SWidget> SCockpitWidget::BuildMinimap()
 {
-    // Placeholder: dark circle with grid lines effect using nested boxes
-    // Real art: circular map frame PNG + player icon PNG
     return SNew(SBox)
         .WidthOverride(140.f)
         .HeightOverride(140.f)
@@ -648,55 +783,8 @@ TSharedRef<SWidget> SCockpitWidget::BuildMinimap()
                 .BorderBackgroundColor(C_PanelBorder)
                 .Padding(4.f)
                 [
-                    SNew(SBorder)
-                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                        .BorderBackgroundColor(C_MinimapBg)
-                        .Padding(8.f)
-                        [
-                            SNew(SOverlay)
-
-                                // Grid cross lines placeholder
-                                + SOverlay::Slot()
-                                .HAlign(HAlign_Center)
-                                .VAlign(VAlign_Fill)
-                                [
-                                    SNew(SBox)
-                                        .WidthOverride(1.f)
-                                        [
-                                            SNew(SBorder)
-                                                .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                                                .BorderBackgroundColor(C_MinimapGrid)
-                                        ]
-                                ]
-
-                            + SOverlay::Slot()
-                                .HAlign(HAlign_Fill)
-                                .VAlign(VAlign_Center)
-                                [
-                                    SNew(SBox)
-                                        .HeightOverride(1.f)
-                                        [
-                                            SNew(SBorder)
-                                                .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                                                .BorderBackgroundColor(C_MinimapGrid)
-                                        ]
-                                ]
-
-                            // Player dot in center
-                            + SOverlay::Slot()
-                                .HAlign(HAlign_Center)
-                                .VAlign(VAlign_Center)
-                                [
-                                    SNew(SBox)
-                                        .WidthOverride(8.f)
-                                        .HeightOverride(8.f)
-                                        [
-                                            SNew(SBorder)
-                                                .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                                                .BorderBackgroundColor(C_AccentGreen)
-                                        ]
-                                ]
-                        ]
+                    SNew(SMinimapWidget)
+                        .OwnerHUD(MyOwnerHUD)
                 ]
         ];
 }
@@ -704,8 +792,6 @@ TSharedRef<SWidget> SCockpitWidget::BuildMinimap()
 // ─── Altitude Panel ───────────────────────────────────────────────
 TSharedRef<SWidget> SCockpitWidget::BuildAltitudePanel()
 {
-    // Placeholder: text readouts for altitude and vertical speed
-    // Real art: panel background PNG
     return SNew(SBorder)
         .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
         .BorderBackgroundColor(C_PanelBg)
@@ -713,8 +799,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildAltitudePanel()
         [
             SNew(SVerticalBox)
 
-                + SVerticalBox::Slot()
-                .AutoHeight()
+                + SVerticalBox::Slot().AutoHeight()
                 [
                     SNew(STextBlock)
                         .Font(FCoreStyle::GetDefaultFontStyle("Bold", 13))
@@ -731,9 +816,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildAltitudePanel()
                             })
                 ]
 
-            + SVerticalBox::Slot()
-                .AutoHeight()
-                .Padding(0, 4)
+            + SVerticalBox::Slot().AutoHeight().Padding(0, 4)
                 [
                     SNew(STextBlock)
                         .Font(FCoreStyle::GetDefaultFontStyle("Bold", 13))
@@ -759,9 +842,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildAltitudePanel()
                             })
                 ]
 
-            + SVerticalBox::Slot()
-                .AutoHeight()
-                .Padding(0, 4)
+            + SVerticalBox::Slot().AutoHeight().Padding(0, 4)
                 [
                     SNew(STextBlock)
                         .Font(FCoreStyle::GetDefaultFontStyle("Bold", 13))
@@ -780,14 +861,13 @@ TSharedRef<SWidget> SCockpitWidget::BuildAltitudePanel()
         ];
 }
 
-// ─── Input Enable/Disable ─────────────────────────────────────────
+// ─── SetInputEnabled ──────────────────────────────────────────────
 void SCockpitWidget::SetInputEnabled(bool bEnabled)
 {
-    // Blocks all player input during replay, success, and failure states
     bInputEnabled = bEnabled;
 }
 
-// ─── Key Input (keyboard fallback) ────────────────────────────────
+// ─── OnKeyDown ────────────────────────────────────────────────────
 FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
     if (!MyOwnerHUD.IsValid()) return FReply::Unhandled();
@@ -857,7 +937,7 @@ void SCockpitWidget::CheckAnswer()
     if (!bInputEnabled) return;
 
     FString InputStr = AnswerInputBox->GetText().ToString();
-    int32 PlayerAnswer = FCString::Atoi(*InputStr);
+    int32   PlayerAnswer = FCString::Atoi(*InputStr);
 
     if (PlayerAnswer == MyOwnerHUD->CurrentCorrectAnswer)
     {

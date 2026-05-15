@@ -27,7 +27,7 @@ public:
     int32 CurrentLevel = 1;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Math Settings")
-    FString QuestionType = TEXT("a"); // "a" = add, "s" = sub, "m" = mul, "d" = div
+    FString QuestionType = TEXT("a");
 
     UPROPERTY(EditAnywhere, Category = "Math Settings")
     float FuelRewardAmount = 100.0f;
@@ -35,10 +35,19 @@ public:
     UFUNCTION(Exec)
     void SetQuestion(FString Type, int32 Level);
 
-    // Call this whenever you want a new question
     void GenerateNewQuestion(FString Type, int32 Level);
+
+    // Shows a full-screen overlay and disables cockpit input
+    void ShowSuccessScreen();
+    void ShowFailureScreen();
+    void HideResultScreen();
 
 protected:
     virtual void BeginPlay() override;
     virtual void DrawHUD() override;
+
+private:
+    // Tracks which overlay to draw in DrawHUD
+    bool bShowSuccess = false;
+    bool bShowFailure = false;
 };

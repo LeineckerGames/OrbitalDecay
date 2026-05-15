@@ -6,6 +6,8 @@
 #include "OrbitalDecayGameMode.h"
 #include "ALanderPawn.h"
 #include "Engine/Canvas.h"
+#include "ReplayRecorder.h"
+#include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
 
 AMyHUD::AMyHUD()
@@ -62,6 +64,26 @@ void AMyHUD::GenerateNewQuestion(FString Type, int32 Level)
 void AMyHUD::DrawHUD()
 {
     Super::DrawHUD();
+
+    // Check replay state every frame and show/hide HUD accordingly
+    AReplayRecorder* Recorder = nullptr;
+    for (TActorIterator<AReplayRecorder> It(GetWorld()); It; ++It)
+    {
+        Recorder = *It;
+        break;
+    }
+
+    if (Recorder)
+    {
+        if (Recorder->IsReplaying())
+        {
+            if (MyCockpitWidget.IsValid() &&
+                MyCockpitWidget->GetVisibility() != EVisibility::Hidden)
+            {
+                MyCockpitWidget->SetVisibility(EVisibility::Hidden);
+            }
+        }
+    }
 
     // Draw velocity in the top-left corner
     ALanderPawn* MyPawn = Cast<ALanderPawn>(GetOwningPawn());

@@ -109,6 +109,10 @@ void ALanderPawn::Tick(float DeltaTime)
                     }
                     else
                     {
+                        // Kill horizontal movement when switching to vertical mode
+                        CurrentVelocity.X = FMath::FInterpTo(CurrentVelocity.X, 0.0f, DeltaTime, AirResistance * 5.0f);
+                        CurrentVelocity.Y = FMath::FInterpTo(CurrentVelocity.Y, 0.0f, DeltaTime, AirResistance * 5.0f);
+
                         CurrentVelocity.Z += (GravityStrength + DefaultThrust) * DeltaTime;
 
                         if (bIsBoosting)
@@ -257,7 +261,7 @@ void ALanderPawn::ActivateBoost()
     if (Fuel > 0.0f)
     {
         bIsBoosting = true;
-        CurrentBoostTimer = BoostDuration;
+        CurrentBoostTimer = bForwardThrustMode ? ForwardBoostDuration : VerticalBoostDuration;
 
         if (bForwardThrustMode)
         {

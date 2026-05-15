@@ -56,13 +56,16 @@ public:
     float FuelDrainBoost = 3.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float BoostDuration = 1.0f;
+    float VerticalBoostDuration = 1.0f;
+
+    UPROPERTY(EditAnywhere, Category = "Flight")
+    float ForwardBoostDuration = 3.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
     float DefaultForwardThrust = 80.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float BoostedForwardThrust = 300.0f;
+    float BoostedForwardThrust = 800.0f;
 
     UPROPERTY(EditAnywhere, Category = "Camera")
     float RotationStep = 15.0f;

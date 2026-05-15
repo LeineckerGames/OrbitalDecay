@@ -12,6 +12,7 @@ public:
         SLATE_ARGUMENT(TWeakObjectPtr<AMyHUD>, OwnerHUD)
     SLATE_END_ARGS()
 
+    void SetInputEnabled(bool bEnabled);
     void Construct(const FArguments& InArgs);
     virtual bool SupportsKeyboardFocus() const override { return true; }
     virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
@@ -21,6 +22,8 @@ private:
     TSharedPtr<SEditableText> AnswerInputBox;
     FText ResultText;
     FSlateColor ResultColor;
+
+    bool bInputEnabled = true;
 
     // Helper functions - one per section (professor's pattern)
     TSharedRef<SWidget> BuildWindowArea();

@@ -780,10 +780,18 @@ TSharedRef<SWidget> SCockpitWidget::BuildAltitudePanel()
         ];
 }
 
+// ─── Input Enable/Disable ─────────────────────────────────────────
+void SCockpitWidget::SetInputEnabled(bool bEnabled)
+{
+    // Blocks all player input during replay, success, and failure states
+    bInputEnabled = bEnabled;
+}
+
 // ─── Key Input (keyboard fallback) ────────────────────────────────
 FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
     if (!MyOwnerHUD.IsValid()) return FReply::Unhandled();
+    if (!bInputEnabled) return FReply::Handled();
 
     if (InKeyEvent.GetKey() == EKeys::L)
     {
@@ -846,6 +854,7 @@ FReply SCockpitWidget::OnAnswerCommitted(const FGeometry& MyGeometry, const FKey
 void SCockpitWidget::CheckAnswer()
 {
     if (!MyOwnerHUD.IsValid() || !AnswerInputBox.IsValid()) return;
+    if (!bInputEnabled) return;
 
     FString InputStr = AnswerInputBox->GetText().ToString();
     int32 PlayerAnswer = FCString::Atoi(*InputStr);

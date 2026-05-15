@@ -71,14 +71,58 @@ void AMyHUD::DrawHUD()
         FString VelText = FString::Printf(TEXT("Velocity: X=%.1f Y=%.1f Z=%.1f"), Vel.X, Vel.Y, Vel.Z);
         DrawText(VelText, FColor::White, 20.f, 20.f, nullptr, 1.5f);
     }
+
+    // Draw success/failure overlay text in the center of the screen
+    // Canvas->SizeX/SizeY gives screen dimensions for positioning
+    if (bShowSuccess)
+    {
+        DrawText(TEXT("LANDED SUCCESSFULLY"), FColor::Green, Canvas->SizeX * 0.35f, Canvas->SizeY * 0.45f, nullptr, 2.5f);
+    }
+    else if (bShowFailure)
+    {
+        DrawText(TEXT("CRASHED"), FColor::Red, Canvas->SizeX * 0.45f, Canvas->SizeY * 0.45f, nullptr, 2.5f);
+    }
 }
 
 void AMyHUD::SetQuestion(FString Type, int32 Level)
 {
     AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(GetWorld()->GetAuthGameMode());
-    if (GM) GM->GlobalLevel = Level; 
+    if (GM) GM->GlobalLevel = Level;
 
     QuestionType = Type;
     CurrentLevel = Level;
     GenerateNewQuestion(QuestionType, CurrentLevel);
+}
+
+void AMyHUD::ShowSuccessScreen()
+{
+    // Show success overlay
+    bShowSuccess = true;
+    bShowFailure = false;
+
+    // Disable cockpit widget input so player can't fire thrusters during replay
+    if (MyCockpitWidget.IsValid())
+        MyCockpitWidget->SetInputEnabled(false);
+}
+
+void AMyHUD::ShowFailureScreen()
+{
+    // Show failure overlay
+    bShowSuccess = false;
+    bShowFailure = true;
+
+    // Disable cockpit widget input so player can't fire thrusters during replay
+    if (MyCockpitWidget.IsValid())
+        MyCockpitWidget->SetInputEnabled(false);
+}
+
+void AMyHUD::HideResultScreen()
+{
+    // Clear both overlays once replay begins
+    bShowSuccess = false;
+    bShowFailure = false;
+
+    // Re-enable cockpit input for the next round (Sprint 5)
+    if (MyCockpitWidget.IsValid())
+        MyCockpitWidget->SetInputEnabled(true);
 }

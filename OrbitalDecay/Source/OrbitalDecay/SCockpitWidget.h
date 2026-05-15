@@ -1,10 +1,46 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/SLeafWidget.h"
 #include "Widgets/Input/SEditableText.h"
 
 class AMyHUD;
 
+// ═══════════════════════════════════════════════════════════════════
+// SMinimapWidget
+// Ship-relative radar: ship arrow fixed at center pointing up.
+// World (landing pads) rotates and translates around it.
+// ═══════════════════════════════════════════════════════════════════
+class SMinimapWidget : public SLeafWidget
+{
+public:
+    SLATE_BEGIN_ARGS(SMinimapWidget) : _OwnerHUD() {}
+        SLATE_ARGUMENT(TWeakObjectPtr<AMyHUD>, OwnerHUD)
+    SLATE_END_ARGS()
+
+    void Construct(const FArguments& InArgs);
+
+    virtual int32 OnPaint(
+        const FPaintArgs& Args,
+        const FGeometry& AllottedGeometry,
+        const FSlateRect& MyCullingRect,
+        FSlateWindowElementList& OutDrawElements,
+        int32                    LayerId,
+        const FWidgetStyle& InWidgetStyle,
+        bool                     bParentEnabled) const override;
+
+    virtual FVector2D ComputeDesiredSize(float) const override
+    {
+        return FVector2D(140.f, 140.f);
+    }
+
+private:
+    TWeakObjectPtr<AMyHUD> MyOwnerHUD;
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// SCockpitWidget
+// ═══════════════════════════════════════════════════════════════════
 class ORBITALDECAY_API SCockpitWidget : public SCompoundWidget
 {
 public:
@@ -20,12 +56,10 @@ public:
 private:
     TWeakObjectPtr<AMyHUD> MyOwnerHUD;
     TSharedPtr<SEditableText> AnswerInputBox;
-    FText ResultText;
+    FText       ResultText;
     FSlateColor ResultColor;
+    bool        bInputEnabled = true;
 
-    bool bInputEnabled = true;
-
-    // Helper functions - one per section (professor's pattern)
     TSharedRef<SWidget> BuildWindowArea();
     TSharedRef<SWidget> BuildBottomPanel();
     TSharedRef<SWidget> BuildLeftPanel();
@@ -42,6 +76,6 @@ private:
 
     FReply OnKeypadButtonClicked(FString Label);
     FReply OnAnswerCommitted(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
-    void CheckAnswer();
-    void AppendToInput(FString Character);
+    void   CheckAnswer();
+    void   AppendToInput(FString Character);
 };

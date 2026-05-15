@@ -92,24 +92,25 @@ void ALanderPawn::Tick(float DeltaTime)
 
                 if (Fuel > 0.0f)
                 {
-                    CurrentVelocity.Z += (GravityStrength + DefaultThrust) * DeltaTime;
-
                     if (bForwardThrustMode)
                     {
-                        // Always apply base forward thrust
-                        FVector ForwardDir = GetActorForwardVector();
-                        CurrentVelocity += ForwardDir * DefaultForwardThrust * DeltaTime;  // <-- add this
+                        float HoverThrust = -GravityStrength * 0.95f;
+                        CurrentVelocity.Z += (GravityStrength + HoverThrust) * DeltaTime;
 
                         if (bIsBoosting)
                         {
+                            FVector ForwardDir = GetActorForwardVector();
                             CurrentVelocity += ForwardDir * BoostedForwardThrust * DeltaTime;
                         }
 
                         CurrentVelocity.X = FMath::FInterpTo(CurrentVelocity.X, 0.0f, DeltaTime, AirResistance);
                         CurrentVelocity.Y = FMath::FInterpTo(CurrentVelocity.Y, 0.0f, DeltaTime, AirResistance);
+                        CurrentVelocity.Z = FMath::Clamp(CurrentVelocity.Z, -50.0f, 0.0f);
                     }
                     else
                     {
+                        CurrentVelocity.Z += (GravityStrength + DefaultThrust) * DeltaTime;
+
                         if (bIsBoosting)
                         {
                             CurrentVelocity.Z += BoostedThrust * DeltaTime;
@@ -122,6 +123,7 @@ void ALanderPawn::Tick(float DeltaTime)
                 }
                 else
                 {
+                    // No fuel, only gravity applies
                     CurrentVelocity.Z += GravityStrength * DeltaTime;
                 }
 
@@ -173,7 +175,6 @@ void ALanderPawn::Tick(float DeltaTime)
                         if (PadsLanded >= 3)
                         {
                             bLevelComplete = true;
-                            // trigger win condition
                         }
                     }
                     else
@@ -182,12 +183,11 @@ void ALanderPawn::Tick(float DeltaTime)
                             GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, TEXT("Already visited this pad!"));
                     }
 
-                    // Relaunch regardless of whether it was a new pad
                     FTimerHandle RelaunchTimer;
                     GetWorldTimerManager().SetTimer(RelaunchTimer, [this]()
                         {
                             bHasLanded = false;
-                            CurrentVelocity.Z = 300.0f; // stronger nudge to fully clear the pad
+                            CurrentVelocity.Z = 300.0f;
                         }, 1.5f, false);
                 }
                 else

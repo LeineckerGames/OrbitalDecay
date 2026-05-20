@@ -73,14 +73,12 @@ int32 SMinimapWidget::OnPaint(
     const FSlateBrush* White = FCoreStyle::Get().GetBrush("WhiteBrush");
     const FVector2D    Size = AllottedGeometry.GetLocalSize();
     const FVector2D    Ctr = Size * 0.5f;
-    const float        R = FMath::Min(Size.X, Size.Y) * 0.5f - 2.f;
+    // Use full half-width so pads reach all the way to the border
+    const float R = Size.X * 0.5f - 2.f;
 
-    // World units visible to the edge of the radar circle
     const float WorldRange = 2500.f;
-    // XY distance within which pad turns yellow
     const float AboveThresh = 350.f;
-    // Pad circle radius in screen pixels
-    const float PadRadius = 8.f;
+    const float PadRadius = 7.f;
 
     // ── 0. Dark gray background ───────────────────────────────────
     FSlateDrawElement::MakeBox(
@@ -89,8 +87,7 @@ int32 SMinimapWidget::OnPaint(
         White, ESlateDrawEffect::None, C_MinimapBg);
     ++LayerId;
 
-    // ── 1. Green X and Y axis lines (fixed, never move) ──────────
-    // Y axis — vertical line through center (ship forward = up)
+    // ── 1. Green axes (fixed, never move) ────────────────────────
     FSlateDrawElement::MakeBox(
         OutDrawElements, LayerId,
         AllottedGeometry.ToPaintGeometry(
@@ -98,7 +95,6 @@ int32 SMinimapWidget::OnPaint(
             FSlateLayoutTransform(FVector2D(Ctr.X, 0.f))),
         White, ESlateDrawEffect::None, C_MapAxis);
 
-    // X axis — horizontal line through center
     FSlateDrawElement::MakeBox(
         OutDrawElements, LayerId,
         AllottedGeometry.ToPaintGeometry(
@@ -107,25 +103,7 @@ int32 SMinimapWidget::OnPaint(
         White, ESlateDrawEffect::None, C_MapAxis);
     ++LayerId;
 
-    // ── 2. Dashed range ring ──────────────────────────────────────
-    {
-        const int32 Segs = 48;
-        const float RingR = R;
-        for (int32 i = 0; i < Segs; ++i)
-        {
-            if (i % 3 == 2) continue; // skip every 3rd → dashed
-            const float A = (float(i) / Segs) * 2.f * PI;
-            FSlateDrawElement::MakeBox(
-                OutDrawElements, LayerId,
-                AllottedGeometry.ToPaintGeometry(
-                    FVector2D(3.f, 3.f),
-                    FSlateLayoutTransform(FVector2D(
-                        Ctr.X + RingR * FMath::Cos(A) - 1.5f,
-                        Ctr.Y + RingR * FMath::Sin(A) - 1.5f))),
-                White, ESlateDrawEffect::None, C_RingColor);
-        }
-    }
-    ++LayerId;
+    
 
     // ── 3. Bail early if world not ready ─────────────────────────
     if (!MyOwnerHUD.IsValid()) return LayerId;
@@ -135,136 +113,128 @@ int32 SMinimapWidget::OnPaint(
     if (!World) return LayerId;
 
     const FVector PawnPos = Pawn->GetActorLocation();
-    const float   YawDeg = Pawn->GetActorRotation().Yaw;
-    const float   YawRad = FMath::DegreesToRadians(-YawDeg);
-    const float   CosYaw = FMath::Cos(YawRad);
-    const float   SinYaw = FMath::Sin(YawRad);
 
-    // Helper: world position → minimap screen position
+    // ── Corrected rotation math ───────────────────────────────────
+    // Ship forward (X axis in UE) maps to screen UP (negative Y).
+    // We rotate world offsets so that ship-forward always points up.
+    // Yaw in UE: positive = clockwise when viewed from above.
+    // To counter-rotate the world: use +YawRad (not negated).
+    const float YawDeg = Pawn->GetActorRotation().Yaw;
+    const float YawRad = FMath::DegreesToRadians(YawDeg);
+    const float CosYaw = FMath::Cos(YawRad);
+    const float SinYaw = FMath::Sin(YawRad);
+
+    // World position → minimap screen position
+    // Rotate offset by -Yaw to get ship-local coords,
+    // then map: ship-local X (forward) → screen up,
+    //           ship-local Y (right)   → screen right
     auto WorldToMap = [&](const FVector& WPos) -> FVector2D
         {
             const float DX = WPos.X - PawnPos.X;
             const float DY = WPos.Y - PawnPos.Y;
-            const float LX = CosYaw * DX + SinYaw * DY; // forward
-            const float LY = -SinYaw * DX + CosYaw * DY; // right
+
+            // Rotate into ship-local space (rotate by -Yaw)
+            const float LX = CosYaw * DX + SinYaw * DY;  // forward component
+            const float LY = -SinYaw * DX + CosYaw * DY;  // right component
+
+            // Forward (LX+) → screen up   → subtract from CtrY
+            // Right   (LY+) → screen right → add to CtrX
             return FVector2D(
                 Ctr.X + (LY / WorldRange) * R,
                 Ctr.Y + (-LX / WorldRange) * R);
         };
 
-    // ── 4. Landing pads as circles ────────────────────────────────
-    // Detect BP_LandingPad actors by class name
+    // ── 4. Landing pads as smooth circles ────────────────────────
+    static const FLinearColor C_PadDark = FLinearColor(0.55f, 0.05f, 0.05f, 1.f); // dark red
+    static const FLinearColor C_PadYellow = FLinearColor(1.00f, 0.85f, 0.00f, 1.f); // yellow
+
     for (TActorIterator<AActor> It(World); It; ++It)
     {
         AActor* Actor = *It;
         if (!Actor) continue;
 
-        // Match any actor whose class name contains "LandingPad"
         const FString ClassName = Actor->GetClass()->GetName();
         if (!ClassName.Contains(TEXT("LandingPad"))) continue;
 
-        const FVector  PadWorld = Actor->GetActorLocation();
+        const FVector   PadWorld = Actor->GetActorLocation();
         const FVector2D PadScreen = WorldToMap(PadWorld);
 
-        // Is pad within the visible radar area?
         const float DistFromCtr = FVector2D::Distance(PadScreen, Ctr);
         if (DistFromCtr > R - PadRadius)
         {
-            // Off edge — draw a small edge indicator instead
+            // Edge indicator
             FVector2D Dir = (PadScreen - Ctr).GetSafeNormal();
-            FVector2D EdgePos = Ctr + Dir * (R - 4.f);
+            FVector2D EdgePos = Ctr + Dir * (R - 5.f);
             FSlateDrawElement::MakeBox(
                 OutDrawElements, LayerId,
                 AllottedGeometry.ToPaintGeometry(
                     FVector2D(5.f, 5.f),
                     FSlateLayoutTransform(EdgePos - FVector2D(2.5f, 2.5f))),
-                White, ESlateDrawEffect::None, C_PadNormal);
+                White, ESlateDrawEffect::None, C_PadDark);
             continue;
         }
 
-        // XY distance to decide color
         const float XYDist = FVector2D::Distance(
             FVector2D(PawnPos.X, PawnPos.Y),
             FVector2D(PadWorld.X, PadWorld.Y));
-        const bool bAbove = XYDist < AboveThresh;
-        const FLinearColor PadColor = bAbove ? C_PadAbove : C_PadNormal;
+        const bool          bAbove = XYDist < AboveThresh;
+        const FLinearColor& PadColor = bAbove ? C_PadYellow : C_PadDark;
 
-        // Draw filled circle using small overlapping boxes (16 segments)
-        // This approximates a circle without needing Slate circle primitives
-        const int32 CircleSegs = 16;
+        // Draw smooth filled circle using 32 thin pie-slice boxes
+        // Each slice is a small square at the correct angle and radius
+        const int32 CircleSegs = 32;
         for (int32 s = 0; s < CircleSegs; ++s)
         {
-            const float A0 = (float(s) / CircleSegs) * 2.f * PI;
-            const float A1 = (float(s + 1) / CircleSegs) * 2.f * PI;
-            const float MidA = (A0 + A1) * 0.5f;
-
-            // Each segment: a thin box at the angle
-            const float SegLen = PadRadius * 2.f * FMath::Sin(PI / CircleSegs) + 1.f;
-            const FVector2D SegPos(
-                PadScreen.X + (PadRadius - 1.f) * FMath::Cos(MidA),
-                PadScreen.Y + (PadRadius - 1.f) * FMath::Sin(MidA));
-
-            FSlateDrawElement::MakeBox(
-                OutDrawElements, LayerId,
-                AllottedGeometry.ToPaintGeometry(
-                    FVector2D(SegLen, SegLen),
-                    FSlateLayoutTransform(SegPos - FVector2D(SegLen * 0.5f))),
-                White, ESlateDrawEffect::None, PadColor);
+            const float A = (float(s) / CircleSegs) * 2.f * PI;
+            for (float r = 0.f; r < PadRadius; r += 1.5f)
+            {
+                const FVector2D Pt(
+                    PadScreen.X + r * FMath::Cos(A),
+                    PadScreen.Y + r * FMath::Sin(A));
+                FSlateDrawElement::MakeBox(
+                    OutDrawElements, LayerId,
+                    AllottedGeometry.ToPaintGeometry(
+                        FVector2D(2.f, 2.f),
+                        FSlateLayoutTransform(Pt - FVector2D(1.f))),
+                    White, ESlateDrawEffect::None, PadColor);
+            }
         }
 
-        // Solid center fill for the circle
+        // Solid center fill
         FSlateDrawElement::MakeBox(
             OutDrawElements, LayerId,
             AllottedGeometry.ToPaintGeometry(
-                FVector2D(PadRadius * 1.2f, PadRadius * 1.2f),
-                FSlateLayoutTransform(PadScreen - FVector2D(PadRadius * 0.6f))),
+                FVector2D(PadRadius * 1.4f, PadRadius * 1.4f),
+                FSlateLayoutTransform(PadScreen - FVector2D(PadRadius * 0.7f))),
             White, ESlateDrawEffect::None, PadColor);
     }
     ++LayerId;
 
-    // ── 5. Ship triangle — fixed at center, always pointing up ───
-    //
-    // Triangle vertices (screen coords, origin = Ctr):
-    //   Nose tip:      (  0, -10)   ← top (up = ship forward)
-    //   Left wing:     ( -7,  +6)
-    //   Right wing:    ( +7,  +6)
-    //
-    // Drawn as 3 filled boxes approximating the triangle shape:
-    //   • Fuselage:   2px wide, 14px tall
-    //   • Left wing:  6px wide,  3px tall, offset left
-    //   • Right wing: 6px wide,  3px tall, offset right
+    // ── 5. Ship — small black dot at center ───────────────────────
     {
-        // Fuselage (vertical bar)
+        const float DotR = 4.f;
         FSlateDrawElement::MakeBox(
             OutDrawElements, LayerId,
             AllottedGeometry.ToPaintGeometry(
-                FVector2D(3.f, 14.f),
-                FSlateLayoutTransform(Ctr + FVector2D(-1.5f, -10.f))),
-            White, ESlateDrawEffect::None, C_ShipGreen);
+                FVector2D(DotR * 2.f, DotR * 2.f),
+                FSlateLayoutTransform(Ctr - FVector2D(DotR))),
+            White, ESlateDrawEffect::None,
+            FLinearColor(0.f, 0.f, 0.f, 1.f));
 
-        // Left wing
-        FSlateDrawElement::MakeBox(
-            OutDrawElements, LayerId,
-            AllottedGeometry.ToPaintGeometry(
-                FVector2D(7.f, 3.f),
-                FSlateLayoutTransform(Ctr + FVector2D(-8.f, 2.f))),
-            White, ESlateDrawEffect::None, C_ShipGreen);
-
-        // Right wing
-        FSlateDrawElement::MakeBox(
-            OutDrawElements, LayerId,
-            AllottedGeometry.ToPaintGeometry(
-                FVector2D(7.f, 3.f),
-                FSlateLayoutTransform(Ctr + FVector2D(1.f, 2.f))),
-            White, ESlateDrawEffect::None, C_ShipGreen);
-
-        // Nose tip dot
-        FSlateDrawElement::MakeBox(
-            OutDrawElements, LayerId,
-            AllottedGeometry.ToPaintGeometry(
-                FVector2D(3.f, 3.f),
-                FSlateLayoutTransform(Ctr + FVector2D(-1.5f, -11.f))),
-            White, ESlateDrawEffect::None, C_ShipGreen);
+        // Small green ring around the dot so it's visible on dark bg
+        const int32 RingSegs = 16;
+        for (int32 i = 0; i < RingSegs; ++i)
+        {
+            const float A = (float(i) / RingSegs) * 2.f * PI;
+            FSlateDrawElement::MakeBox(
+                OutDrawElements, LayerId,
+                AllottedGeometry.ToPaintGeometry(
+                    FVector2D(2.f, 2.f),
+                    FSlateLayoutTransform(FVector2D(
+                        Ctr.X + (DotR + 2.f) * FMath::Cos(A) - 1.f,
+                        Ctr.Y + (DotR + 2.f) * FMath::Sin(A) - 1.f))),
+                White, ESlateDrawEffect::None, C_ShipGreen);
+        }
     }
     ++LayerId;
 
@@ -763,10 +733,22 @@ TSharedRef<SWidget> SCockpitWidget::BuildRightPanel()
         [
             SNew(SVerticalBox)
 
-                + SVerticalBox::Slot().FillHeight(0.60f).HAlign(HAlign_Center).Padding(0, 4)
-                [BuildMinimap()]
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                .Padding(0, 4)
+                [
+                    SNew(SBox)
+                        .WidthOverride(130.f)
+                        .HeightOverride(130.f)
+                        [
+                            BuildMinimap()
+                        ]
+                ]
 
-                + SVerticalBox::Slot().FillHeight(0.40f).Padding(0, 4)
+            + SVerticalBox::Slot()
+                .FillHeight(1.f)
+                .Padding(0, 4)
                 [BuildAltitudePanel()]
         ];
 }
@@ -774,18 +756,13 @@ TSharedRef<SWidget> SCockpitWidget::BuildRightPanel()
 // ─── Minimap ──────────────────────────────────────────────────────
 TSharedRef<SWidget> SCockpitWidget::BuildMinimap()
 {
-    return SNew(SBox)
-        .WidthOverride(140.f)
-        .HeightOverride(140.f)
+    return SNew(SBorder)
+        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+        .BorderBackgroundColor(C_PanelBorder)
+        .Padding(2.f)
         [
-            SNew(SBorder)
-                .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                .BorderBackgroundColor(C_PanelBorder)
-                .Padding(4.f)
-                [
-                    SNew(SMinimapWidget)
-                        .OwnerHUD(MyOwnerHUD)
-                ]
+            SNew(SMinimapWidget)
+                .OwnerHUD(MyOwnerHUD)
         ];
 }
 

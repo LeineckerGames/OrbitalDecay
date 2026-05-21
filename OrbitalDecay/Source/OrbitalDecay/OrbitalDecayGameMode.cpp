@@ -49,11 +49,13 @@ void AOrbitalDecayGameMode::SetGameState(EGameState NewState)
         break;
 
     case EGameState::Failure:
-        // TODO: disable ALanderPawn input
-        // TODO: show failure UI on AMyHUD
+    {
+        AMyHUD* HUD = Cast<AMyHUD>(GetWorld()->GetFirstPlayerController()->GetHUD());
+        if (HUD) HUD->ShowFailureScreen();
         UE_LOG(LogTemp, Warning, TEXT("GameState -> Failure"));
         StartReplay();
         break;
+    }
 
     case EGameState::Replay:
         if (ReplayRecorder)

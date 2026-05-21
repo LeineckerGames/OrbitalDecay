@@ -75,4 +75,5 @@ void AReplayRecorder::StartReplay()
 void AReplayRecorder::StopReplay()
 {
     bReplaying = false;
+    OnReplayFinished.Broadcast();
 }

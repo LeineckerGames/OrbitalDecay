@@ -7,6 +7,7 @@
 #include "ALanderPawn.h"
 #include "Engine/Canvas.h"
 #include "ReplayRecorder.h"
+#include "SCrashScreen.h"
 #include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -35,6 +36,16 @@ void AMyHUD::BeginPlay()
         GEngine->GameViewport->AddViewportWidgetContent(
             SNew(SWeakWidget).PossiblyNullContent(MyCockpitWidget.ToSharedRef())
         );
+
+        // Bind to replay finished so we show crash screen after replay ends
+        for (TActorIterator<AReplayRecorder> It(GetWorld()); It; ++It)
+        {
+            It->OnReplayFinished.AddLambda([this]()
+            {
+                ShowCrashScreen();
+            });
+            break;
+        }
 
         APlayerController* PC = GetOwningPlayerController();
         if (PC)
@@ -147,4 +158,22 @@ void AMyHUD::HideResultScreen()
     // Re-enable cockpit input for the next round (Sprint 5)
     if (MyCockpitWidget.IsValid())
         MyCockpitWidget->SetInputEnabled(true);
+}
+
+void AMyHUD::ShowCrashScreen()
+{
+    if (!GEngine || !GEngine->GameViewport) return;
+
+    // Show cursor so player can click Retry
+    APlayerController* PC = GetOwningPlayerController();
+    if (PC)
+    {
+        PC->bShowMouseCursor = true;
+        FInputModeUIOnly InputMode;
+        PC->SetInputMode(InputMode);
+    }
+
+    MyCrashScreen = SNew(SCrashScreen).OwnerWorld(GetWorld());
+    GEngine->GameViewport->AddViewportWidgetContent(
+        MyCrashScreen.ToSharedRef(), 10); // zorder 10 = on top of cockpit
 }

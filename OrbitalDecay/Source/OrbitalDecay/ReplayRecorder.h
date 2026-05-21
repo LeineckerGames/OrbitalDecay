@@ -1,5 +1,4 @@
 #pragma once
-
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "ReplayRecorder.generated.h"
@@ -8,19 +7,18 @@ USTRUCT(BlueprintType)
 struct FTransformFrame
 {
     GENERATED_BODY()
-
     UPROPERTY()
     FVector Position = FVector::ZeroVector;
-
     UPROPERTY()
     FRotator Rotation = FRotator::ZeroRotator;
 };
+
+DECLARE_MULTICAST_DELEGATE(FOnReplayFinished);
 
 UCLASS()
 class ORBITALDECAY_API AReplayRecorder : public AActor
 {
     GENERATED_BODY()
-
 public:
     AReplayRecorder();
 
@@ -38,6 +36,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
     float TargetFPS = 60.0f;
 
+    // Broadcast when replay finishes — HUD listens to this
+    FOnReplayFinished OnReplayFinished;
+
     UFUNCTION(BlueprintCallable, Category = "Replay")
     void StartReplay();
 
@@ -53,6 +54,6 @@ private:
     int32 FrameIndex = 0;
     int32 ReplayIndex = 0;
     int32 ReplayFramesPlayed = 0;
-    bool bReplaying = false;
+    bool  bReplaying = false;
     float TimeAccumulator = 0.f;
 };

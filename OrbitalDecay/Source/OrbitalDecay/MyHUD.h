@@ -13,10 +13,11 @@ public:
 
     FSlateBrush CockpitBrush;
     TSharedPtr<class SCockpitWidget> MyCockpitWidget;
+    TSharedPtr<class SCrashScreen>   MyCrashScreen;
 
     FString CurrentQuestionText;
-    int32 CurrentCorrectAnswer = 0;
-    bool bQuestionActive = false;
+    int32   CurrentCorrectAnswer = 0;
+    bool    bQuestionActive = false;
 
     UPROPERTY()
     UMathGenerator* MathEngine;
@@ -36,18 +37,16 @@ public:
     void SetQuestion(FString Type, int32 Level);
 
     void GenerateNewQuestion(FString Type, int32 Level);
-
-    // Shows a full-screen overlay and disables cockpit input
     void ShowSuccessScreen();
     void ShowFailureScreen();
     void HideResultScreen();
+    void ShowCrashScreen();   // called when replay ends
 
 protected:
     virtual void BeginPlay() override;
     virtual void DrawHUD() override;
 
 private:
-    // Tracks which overlay to draw in DrawHUD
     bool bShowSuccess = false;
     bool bShowFailure = false;
 };

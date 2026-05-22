@@ -4,6 +4,7 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "ReplayRecorder.h"
+#include "MissionCharacter.h"
 #include "ALanderPawn.generated.h"
 
 UCLASS()
@@ -76,9 +77,20 @@ public:
     UPROPERTY(EditAnywhere, Category = "Flight")
     float MaxSafeLandingVelocity = -200.0f;
 
+    UPROPERTY(EditAnywhere, Category = "Mission")
+    float MissionBriefingDuration = 5.0f;
+
+    UPROPERTY(EditAnywhere, Category = "Mission")
+    TArray<UMissionCharacter*> MissionCharacters;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Mission")
+    UMissionCharacter* SelectedCharacter;
+
     TSet<AActor*> VisitedPads;
     int32 PadsLanded = 0;
     bool bLevelComplete = false;
+
+    bool bGameStarted = false;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
     float AirResistance = 3.0f;

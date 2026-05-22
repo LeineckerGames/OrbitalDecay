@@ -34,7 +34,9 @@ static const FLinearColor C_Transparent = FLinearColor(0, 0, 0, 0);
 // Minimap colors
 static const FLinearColor C_MapAxis = FLinearColor(0.10f, 0.90f, 0.20f, 0.60f); // green axes
 static const FLinearColor C_ShipGreen = FLinearColor(0.10f, 0.90f, 0.20f, 1.f);   // ship arrow
-static const FLinearColor C_PadNormal = FLinearColor(0.90f, 0.10f, 0.10f, 1.f);   // red pad
+static const FLinearColor C_PadVisited = FLinearColor(0.10f, 0.85f, 0.20f, 1.f); // green
+static const FLinearColor C_PadNearby  = FLinearColor(1.00f, 0.85f, 0.00f, 1.f); // yellow
+static const FLinearColor C_PadNormal  = FLinearColor(0.55f, 0.05f, 0.05f, 1.f); // dark red
 static const FLinearColor C_PadAbove = FLinearColor(1.00f, 0.85f, 0.00f, 1.f);   // yellow when above
 static const FLinearColor C_RingColor = FLinearColor(0.10f, 0.35f, 0.10f, 0.50f); // dim ring
 
@@ -62,32 +64,34 @@ void SMinimapWidget::Construct(const FArguments& InArgs)
 //   (forward=LocalX+ → screen up, right=LocalY+ → screen right)
 // ═══════════════════════════════════════════════════════════════════
 int32 SMinimapWidget::OnPaint(
-    const FPaintArgs& Args,
-    const FGeometry& AllottedGeometry,
-    const FSlateRect& MyCullingRect,
+    const FPaintArgs&        Args,
+    const FGeometry&         AllottedGeometry,
+    const FSlateRect&        MyCullingRect,
     FSlateWindowElementList& OutDrawElements,
     int32                    LayerId,
-    const FWidgetStyle& InWidgetStyle,
+    const FWidgetStyle&      InWidgetStyle,
     bool                     bParentEnabled) const
 {
     const FSlateBrush* White = FCoreStyle::Get().GetBrush("WhiteBrush");
-    const FVector2D    Size = AllottedGeometry.GetLocalSize();
-    const FVector2D    Ctr = Size * 0.5f;
-    // Use full half-width so pads reach all the way to the border
-    const float R = Size.X * 0.5f - 2.f;
+    const FVector2D    Size  = AllottedGeometry.GetLocalSize();
+    const FVector2D    Ctr   = Size * 0.5f;
+    const float        R     = Size.X * 0.5f - 2.f;
 
-    const float WorldRange = 2500.f;
-    const float AboveThresh = 350.f;
-    const float PadRadius = 7.f;
+    // World units visible to the edge of the radar
+    const float WorldRange  = 3000.f;
+    // XY distance within which pad turns yellow (approaching)
+    const float AboveThresh = 400.f;
+    // Pad dot radius in screen pixels
+    const float PadRadius   = 9.f;
 
-    // ── 0. Dark gray background ───────────────────────────────────
+    // ── 0. Dark background ────────────────────────────────────────
     FSlateDrawElement::MakeBox(
         OutDrawElements, LayerId,
         AllottedGeometry.ToPaintGeometry(Size, FSlateLayoutTransform()),
         White, ESlateDrawEffect::None, C_MinimapBg);
     ++LayerId;
 
-    // ── 1. Green axes (fixed, never move) ────────────────────────
+    // ── 1. Green axes ─────────────────────────────────────────────
     FSlateDrawElement::MakeBox(
         OutDrawElements, LayerId,
         AllottedGeometry.ToPaintGeometry(
@@ -103,50 +107,45 @@ int32 SMinimapWidget::OnPaint(
         White, ESlateDrawEffect::None, C_MapAxis);
     ++LayerId;
 
-    
-
-    // ── 3. Bail early if world not ready ─────────────────────────
+    // ── 2. Bail early if world not ready ─────────────────────────
     if (!MyOwnerHUD.IsValid()) return LayerId;
     ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
     if (!Pawn) return LayerId;
     UWorld* World = Pawn->GetWorld();
     if (!World) return LayerId;
 
-    const FVector PawnPos = Pawn->GetActorLocation();
+    // ── KEY FIX: Use camera world position as the reference point ─
+    // The camera is at -500 X relative to pawn. Using camera position
+    // means the minimap center matches exactly what the player sees.
+    FVector CamPos = Pawn->Camera
+        ? Pawn->Camera->GetComponentLocation()
+        : Pawn->GetActorLocation();
 
-    // ── Corrected rotation math ───────────────────────────────────
-    // Ship forward (X axis in UE) maps to screen UP (negative Y).
-    // We rotate world offsets so that ship-forward always points up.
-    // Yaw in UE: positive = clockwise when viewed from above.
-    // To counter-rotate the world: use +YawRad (not negated).
+    // Use pawn rotation for map orientation (camera inherits this)
     const float YawDeg = Pawn->GetActorRotation().Yaw;
     const float YawRad = FMath::DegreesToRadians(YawDeg);
     const float CosYaw = FMath::Cos(YawRad);
     const float SinYaw = FMath::Sin(YawRad);
 
     // World position → minimap screen position
-    // Rotate offset by -Yaw to get ship-local coords,
-    // then map: ship-local X (forward) → screen up,
-    //           ship-local Y (right)   → screen right
+    // Reference point is CamPos so the center of the map
+    // matches exactly what the camera is looking at
     auto WorldToMap = [&](const FVector& WPos) -> FVector2D
-        {
-            const float DX = WPos.X - PawnPos.X;
-            const float DY = WPos.Y - PawnPos.Y;
+    {
+        const float DX = WPos.X - CamPos.X;
+        const float DY = WPos.Y - CamPos.Y;
 
-            // Rotate into ship-local space (rotate by -Yaw)
-            const float LX = CosYaw * DX + SinYaw * DY;  // forward component
-            const float LY = -SinYaw * DX + CosYaw * DY;  // right component
+        // Rotate into camera-local space
+        const float LX =  CosYaw * DX + SinYaw * DY;
+        const float LY = -SinYaw * DX + CosYaw * DY;
 
-            // Forward (LX+) → screen up   → subtract from CtrY
-            // Right   (LY+) → screen right → add to CtrX
-            return FVector2D(
-                Ctr.X + (LY / WorldRange) * R,
-                Ctr.Y + (-LX / WorldRange) * R);
-        };
+        return FVector2D(
+            Ctr.X + ( LY / WorldRange) * R,
+            Ctr.Y + (-LX / WorldRange) * R);
+    };
 
-    // ── 4. Landing pads as smooth circles ────────────────────────
-    static const FLinearColor C_PadDark = FLinearColor(0.55f, 0.05f, 0.05f, 1.f); // dark red
-    static const FLinearColor C_PadYellow = FLinearColor(1.00f, 0.85f, 0.00f, 1.f); // yellow
+    // ── 3. Landing pads ───────────────────────────────────────────
+    
 
     for (TActorIterator<AActor> It(World); It; ++It)
     {
@@ -156,32 +155,41 @@ int32 SMinimapWidget::OnPaint(
         const FString ClassName = Actor->GetClass()->GetName();
         if (!ClassName.Contains(TEXT("LandingPad"))) continue;
 
-        const FVector   PadWorld = Actor->GetActorLocation();
+        const FVector   PadWorld  = Actor->GetActorLocation();
         const FVector2D PadScreen = WorldToMap(PadWorld);
 
+        // Check if outside visible area
         const float DistFromCtr = FVector2D::Distance(PadScreen, Ctr);
         if (DistFromCtr > R - PadRadius)
         {
-            // Edge indicator
-            FVector2D Dir = (PadScreen - Ctr).GetSafeNormal();
+            // Edge indicator dot
+            FVector2D Dir     = (PadScreen - Ctr).GetSafeNormal();
             FVector2D EdgePos = Ctr + Dir * (R - 5.f);
             FSlateDrawElement::MakeBox(
                 OutDrawElements, LayerId,
                 AllottedGeometry.ToPaintGeometry(
                     FVector2D(5.f, 5.f),
                     FSlateLayoutTransform(EdgePos - FVector2D(2.5f, 2.5f))),
-                White, ESlateDrawEffect::None, C_PadDark);
+                White, ESlateDrawEffect::None, C_PadNormal);
             continue;
         }
 
-        const float XYDist = FVector2D::Distance(
-            FVector2D(PawnPos.X, PawnPos.Y),
-            FVector2D(PadWorld.X, PadWorld.Y));
-        const bool          bAbove = XYDist < AboveThresh;
-        const FLinearColor& PadColor = bAbove ? C_PadYellow : C_PadDark;
+        // Determine color based on visited state and proximity
+        // Check visited first — green overrides everything
+        const bool bVisited = Pawn->VisitedPads.Contains(Actor);
 
-        // Draw smooth filled circle using 32 thin pie-slice boxes
-        // Each slice is a small square at the correct angle and radius
+        // XY distance using camera position for consistency
+        const float XYDist = FVector2D::Distance(
+            FVector2D(CamPos.X, CamPos.Y),
+            FVector2D(PadWorld.X, PadWorld.Y));
+        const bool bNearby = !bVisited && XYDist < AboveThresh;
+
+        FLinearColor PadColor;
+        if      (bVisited) PadColor = C_PadVisited;
+        else if (bNearby)  PadColor = C_PadNearby;
+        else               PadColor = C_PadNormal;
+
+        // Draw filled circle using polar coordinate fill
         const int32 CircleSegs = 32;
         for (int32 s = 0; s < CircleSegs; ++s)
         {
@@ -210,7 +218,7 @@ int32 SMinimapWidget::OnPaint(
     }
     ++LayerId;
 
-    // ── 5. Ship — small black dot at center ───────────────────────
+    // ── 4. Ship dot — fixed at center ────────────────────────────
     {
         const float DotR = 4.f;
         FSlateDrawElement::MakeBox(
@@ -221,7 +229,7 @@ int32 SMinimapWidget::OnPaint(
             White, ESlateDrawEffect::None,
             FLinearColor(0.f, 0.f, 0.f, 1.f));
 
-        // Small green ring around the dot so it's visible on dark bg
+        // Green ring around dot
         const int32 RingSegs = 16;
         for (int32 i = 0; i < RingSegs; ++i)
         {

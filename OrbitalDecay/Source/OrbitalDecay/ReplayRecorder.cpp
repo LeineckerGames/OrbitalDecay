@@ -1,4 +1,5 @@
 #include "ReplayRecorder.h"
+#include "ALanderPawn.h"
 #include "Kismet/GameplayStatics.h"
 
 AReplayRecorder::AReplayRecorder()
@@ -38,7 +39,18 @@ void AReplayRecorder::Tick(float DeltaTime)
         if (bReplaying)
         {
             const FTransformFrame& Frame = Buffer[ReplayIndex];
-            TargetActor->SetActorLocation(Frame.Position);
+
+            // Offset replay position so mesh appears at camera position
+            // rather than pawn origin, matching what player experienced
+            FVector ReplayPos = Frame.Position;
+            ALanderPawn* LanderPawn = Cast<ALanderPawn>(TargetActor);
+            if (LanderPawn)
+            {
+                FVector ForwardDir = Frame.Rotation.Vector();
+                ReplayPos = Frame.Position - (ForwardDir * 500.f);
+            }
+
+            TargetActor->SetActorLocation(ReplayPos);
             TargetActor->SetActorRotation(Frame.Rotation);
 
             ReplayIndex = (ReplayIndex + 1) % BufferSize;

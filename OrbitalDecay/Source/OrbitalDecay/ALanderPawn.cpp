@@ -40,6 +40,27 @@ void ALanderPawn::BeginPlay()
     Super::BeginPlay();
     TargetRotation = GetActorRotation();
 
+    if (MissionCharacters.Num() > 0)
+    {
+        int32 RandomIndex = FMath::RandRange(0, MissionCharacters.Num() - 1);
+        SelectedCharacter = MissionCharacters[RandomIndex];
+        MissionBriefingDuration = SelectedCharacter->BriefingDuration;
+
+        if (GEngine)
+            GEngine->AddOnScreenDebugMessage(-1, MissionBriefingDuration, FColor::White,
+                FString::Printf(TEXT("%s: %s"),
+                    *SelectedCharacter->CharacterName,
+                    *SelectedCharacter->MissionDialogue.ToString()));
+    }
+
+    FTimerHandle GameStartTimer;
+    GetWorldTimerManager().SetTimer(GameStartTimer, [this]()
+        {
+            bGameStarted = true;
+            if (GEngine)
+                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("GO!"));
+        }, MissionBriefingDuration, false);
+
     TArray<AActor*> FoundActors;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AReplayRecorder::StaticClass(), FoundActors);
     if (FoundActors.Num() > 0)
@@ -63,6 +84,8 @@ void ALanderPawn::BeginPlay()
 void ALanderPawn::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+
+    if (!bGameStarted) return;
 
     bool bIsReplaying = ReplayRecorder && ReplayRecorder->IsReplaying();
 

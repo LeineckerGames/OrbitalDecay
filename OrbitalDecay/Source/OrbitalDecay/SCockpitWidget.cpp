@@ -701,6 +701,10 @@ FReply SCockpitWidget::OnKeypadButtonClicked(FString Label)
 {
     if (!bInputEnabled) return FReply::Handled();
 
+    if (!MyOwnerHUD.IsValid()) return FReply::Handled();
+    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+    if (!P || !P->bGameStarted) return FReply::Handled();
+
     if (Label == "ENTER")
     {
         CheckAnswer();
@@ -711,11 +715,7 @@ FReply SCockpitWidget::OnKeypadButtonClicked(FString Label)
 
     if (!MyOwnerHUD->bQuestionActive)
     {
-        AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
-            MyOwnerHUD->GetWorld()->GetAuthGameMode());
-        int32 Level = GM ? GM->GlobalLevel : 1;
-        MyOwnerHUD->GenerateNewQuestion(MyOwnerHUD->QuestionType, Level);
-        MyOwnerHUD->bQuestionActive = true;
+        return FReply::Handled();
     }
 
     AppendToInput(Label);
@@ -858,9 +858,11 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
     if (!MyOwnerHUD.IsValid()) return FReply::Unhandled();
     if (!bInputEnabled) return FReply::Handled();
 
+    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+    if (!P || !P->bGameStarted) return FReply::Handled();
+
     if (InKeyEvent.GetKey() == EKeys::L)
     {
-        ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
         if (P)
         {
             P->ToggleThrustMode();
@@ -923,6 +925,7 @@ void SCockpitWidget::CheckAnswer()
 
     FString InputStr = AnswerInputBox->GetText().ToString();
     int32   PlayerAnswer = FCString::Atoi(*InputStr);
+    bool bCorrect = (PlayerAnswer == MyOwnerHUD->CurrentCorrectAnswer);
 
     if (PlayerAnswer == MyOwnerHUD->CurrentCorrectAnswer)
     {
@@ -968,5 +971,16 @@ void SCockpitWidget::CheckAnswer()
     }
 
     AnswerInputBox->SetText(FText::GetEmpty());
-    FSlateApplication::Get().SetKeyboardFocus(AsShared());
+
+    if (PlayerAnswer == MyOwnerHUD->CurrentCorrectAnswer)
+    {
+        // Correct - focus widget so A/S/M/D keypresses are received
+        FSlateApplication::Get().SetKeyboardFocus(AsShared());
+    }
+    else
+    {
+        // Incorrect - keep focus on input box so player can retype immediately
+        if (AnswerInputBox.IsValid())
+            FSlateApplication::Get().SetKeyboardFocus(AnswerInputBox);
+    }
 }

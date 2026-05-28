@@ -14,10 +14,12 @@ public:
     FSlateBrush CockpitBrush;
     TSharedPtr<class SCockpitWidget> MyCockpitWidget;
     TSharedPtr<class SCrashScreen>   MyCrashScreen;
+    TSharedPtr<class SPauseWidget>   MyPauseWidget;
 
     FString CurrentQuestionText;
     int32   CurrentCorrectAnswer = 0;
     bool    bQuestionActive = false;
+    bool    bIsPaused = false;
 
     UPROPERTY()
     UMathGenerator* MathEngine;
@@ -40,7 +42,9 @@ public:
     void ShowSuccessScreen();
     void ShowFailureScreen();
     void HideResultScreen();
-    void ShowCrashScreen();   // called when replay ends
+    void ShowCrashScreen();
+    void ShowPauseScreen();
+    void HidePauseScreen();
 
 protected:
     virtual void BeginPlay() override;

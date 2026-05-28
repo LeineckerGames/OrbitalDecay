@@ -8,6 +8,7 @@
 #include "Engine/Canvas.h"
 #include "ReplayRecorder.h"
 #include "SCrashScreen.h"
+#include "SPauseWidget.h"
 #include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -176,4 +177,60 @@ void AMyHUD::ShowCrashScreen()
     MyCrashScreen = SNew(SCrashScreen).OwnerWorld(GetWorld());
     GEngine->GameViewport->AddViewportWidgetContent(
         MyCrashScreen.ToSharedRef(), 10); // zorder 10 = on top of cockpit
+}
+
+void AMyHUD::ShowPauseScreen()
+{
+    if (bIsPaused) return;
+    bIsPaused = true;
+
+    // Pause the game — freezes all ticking, physics, timers
+    APlayerController* PC = GetOwningPlayerController();
+    if (PC) PC->SetPause(true);
+
+    // Disable cockpit input so player can't answer questions while paused
+    if (MyCockpitWidget.IsValid())
+        MyCockpitWidget->SetInputEnabled(false);
+
+    if (GEngine && GEngine->GameViewport)
+    {
+        MyPauseWidget = SNew(SPauseWidget)
+            .OwnerWorld(GetWorld())
+            .OnResume_Lambda([this]()
+            {
+                HidePauseScreen();
+            });
+
+        GEngine->GameViewport->AddViewportWidgetContent(
+            MyPauseWidget.ToSharedRef(), 5); // zorder 5, below crash screen
+    }
+}
+
+void AMyHUD::HidePauseScreen()
+{
+    if (!bIsPaused) return;
+    bIsPaused = false;
+
+    if (MyCockpitWidget.IsValid())
+        MyCockpitWidget->SetInputEnabled(true);
+
+    if (GEngine && GEngine->GameViewport && MyPauseWidget.IsValid())
+    {
+        GEngine->GameViewport->RemoveViewportWidgetContent(
+            MyPauseWidget.ToSharedRef());
+        MyPauseWidget.Reset();
+    }
+
+    // Restore focus and input mode to cockpit widget
+    APlayerController* PC = GetOwningPlayerController();
+    if (PC)
+    {
+        FInputModeUIOnly InputMode;
+        InputMode.SetWidgetToFocus(MyCockpitWidget);
+        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        PC->SetInputMode(InputMode);
+        PC->bShowMouseCursor = true;
+    }
+
+    FSlateApplication::Get().SetKeyboardFocus(MyCockpitWidget);
 }

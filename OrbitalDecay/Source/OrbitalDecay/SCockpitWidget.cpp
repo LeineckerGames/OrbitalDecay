@@ -277,20 +277,58 @@ TSharedRef<SWidget> SCockpitWidget::BuildWindowArea()
 {
     return SNew(SOverlay)
 
+        // Transparent window — game world shows through
         + SOverlay::Slot()
         .HAlign(HAlign_Fill)
         .VAlign(VAlign_Fill)
-        [SNew(SSpacer)]
+        [ SNew(SSpacer) ]
 
+        // Pause button — top right corner
+        + SOverlay::Slot()
+        .HAlign(HAlign_Right)
+        .VAlign(VAlign_Top)
+        .Padding(0.f, 8.f, 8.f, 0.f)
+        [
+            SNew(SBox)
+            .WidthOverride(48.f)
+            .HeightOverride(48.f)
+            [
+                SNew(SButton)
+                .ButtonColorAndOpacity(FLinearColor(0.08f, 0.10f, 0.14f, 0.85f))
+                .HAlign(HAlign_Center)
+                .VAlign(VAlign_Center)
+                .OnClicked_Lambda([this]() -> FReply
+                {
+                    if (MyOwnerHUD.IsValid())
+                    {
+                        AMyHUD* HUD = MyOwnerHUD.Get();
+                        if (HUD->bIsPaused)
+                            HUD->HidePauseScreen();
+                        else
+                            HUD->ShowPauseScreen();
+                    }
+                    return FReply::Handled();
+                })
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("II")))
+                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 20))
+                    .ColorAndOpacity(FLinearColor(0.20f, 1.00f, 0.30f, 1.f))
+                    .Justification(ETextJustify::Center)
+                ]
+            ]
+        ]
+
+        // Result feedback text at bottom of window
         + SOverlay::Slot()
         .HAlign(HAlign_Center)
         .VAlign(VAlign_Bottom)
         .Padding(0, 0, 0, 20)
         [
             SNew(STextBlock)
-                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 28))
-                .ColorAndOpacity_Lambda([this]() { return ResultColor; })
-                .Text_Lambda([this]() { return ResultText; })
+            .Font(FCoreStyle::GetDefaultFontStyle("Bold", 28))
+            .ColorAndOpacity_Lambda([this]() { return ResultColor; })
+            .Text_Lambda([this]() { return ResultText; })
         ];
 }
 

@@ -118,6 +118,8 @@ public:
     float LowGravity = -160.0f;
     float HighGravity = -500.0f;
 
+    float LevelTimeSeconds = 0.f;
+
 protected:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaTime) override;

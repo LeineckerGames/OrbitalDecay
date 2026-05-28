@@ -49,6 +49,7 @@ public:
     SLATE_END_ARGS()
 
     void SetInputEnabled(bool bEnabled);
+    void SetPauseButtonVisible(bool bVisible);
     void Construct(const FArguments& InArgs);
     virtual bool SupportsKeyboardFocus() const override { return true; }
     virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
@@ -56,6 +57,7 @@ public:
 private:
     TWeakObjectPtr<AMyHUD> MyOwnerHUD;
     TSharedPtr<SEditableText> AnswerInputBox;
+    TSharedPtr<SButton> PauseButton;
     FText       ResultText;
     FSlateColor ResultColor;
     bool        bInputEnabled = true;

@@ -87,6 +87,13 @@ void ALanderPawn::Tick(float DeltaTime)
 
     if (!bGameStarted) return;
 
+    // Accumulate level time — pausing stops Tick so this
+    // automatically pauses with the game
+    if (!bHasLanded && !bLevelComplete)
+    {
+        LevelTimeSeconds += DeltaTime;
+    }
+
     bool bIsReplaying = ReplayRecorder && ReplayRecorder->IsReplaying();
 
     if (bLevelComplete && !bIsReplaying) return;

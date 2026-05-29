@@ -68,7 +68,7 @@ void SLevelCompleteWidget::Construct(const FArguments& InArgs)
         .VAlign(VAlign_Center)
         [
             SNew(SBox)
-            .WidthOverride(420.f)
+            .WidthOverride(560.f)
             [
                 SNew(SBorder)
                 .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))

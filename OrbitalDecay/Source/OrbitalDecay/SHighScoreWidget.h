@@ -19,6 +19,9 @@ private:
 
     TSharedPtr<SVerticalBox> ScoreTable;
 
+    TSharedPtr<SScrollBox> LevelListBox;
+    void RebuildLevelList();
+
     void RefreshScores();
     FReply OnBackClicked();
 };

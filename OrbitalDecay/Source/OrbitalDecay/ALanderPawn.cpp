@@ -3,6 +3,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "OrbitalDecayGameMode.h"
 #include "Kismet/GameplayStatics.h"
+#include "MyHUD.h"
 
 ALanderPawn::ALanderPawn()
 {
@@ -209,6 +210,19 @@ void ALanderPawn::Tick(float DeltaTime)
                         if (PadsLanded >= 3)
                         {
                             bLevelComplete = true;
+
+                            // Get current level from game mode
+                            AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
+                                GetWorld()->GetAuthGameMode());
+                            int32 CurrentLevelNum = GM ? GM->GlobalLevel : 1;
+
+                            // Show level complete screen with time and accuracy
+                            AMyHUD* HUD = Cast<AMyHUD>(
+                                GetWorld()->GetFirstPlayerController()->GetHUD());
+                            if (HUD)
+                            {
+                                HUD->ShowLevelCompleteScreen(LevelTimeSeconds, CurrentLevelNum);
+                            }
                         }
                     }
                     else

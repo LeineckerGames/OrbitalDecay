@@ -968,6 +968,11 @@ void SCockpitWidget::CheckAnswer()
     if (PlayerAnswer == MyOwnerHUD->CurrentCorrectAnswer)
     {
         ResultText = FText::FromString(TEXT("CORRECT!"));
+        if (MyOwnerHUD.IsValid())
+        {
+            MyOwnerHUD->TotalQuestionsAnswered++;
+            MyOwnerHUD->TotalQuestionsCorrect++;
+        }
         ResultColor = FSlateColor(C_AccentGreen);
         MyOwnerHUD->bQuestionActive = false;
         MyOwnerHUD->CurrentQuestionText = TEXT("");
@@ -1005,6 +1010,10 @@ void SCockpitWidget::CheckAnswer()
     {
         ResultText = FText::FromString(
             FString::Printf(TEXT("WRONG! GOT %d"), PlayerAnswer));
+        if (MyOwnerHUD.IsValid())
+        {
+            MyOwnerHUD->TotalQuestionsAnswered++;
+        }
         ResultColor = FSlateColor(C_FuelLow);
     }
 

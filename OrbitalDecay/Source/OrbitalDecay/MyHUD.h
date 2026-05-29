@@ -46,6 +46,19 @@ public:
     void ShowPauseScreen();
     void HidePauseScreen();
 
+    TSharedPtr<class SLevelCompleteWidget> MyLevelCompleteWidget;
+    int32 TotalQuestionsAnswered = 0;
+    int32 TotalQuestionsCorrect  = 0;
+
+    float GetAccuracyPercent() const
+    {
+        if (TotalQuestionsAnswered == 0) return 100.f;
+        return (float)TotalQuestionsCorrect /
+            (float)TotalQuestionsAnswered * 100.f;
+    }
+
+    void ShowLevelCompleteScreen(float CompletionTime, int32 Level);
+
 protected:
     virtual void BeginPlay() override;
     virtual void DrawHUD() override;

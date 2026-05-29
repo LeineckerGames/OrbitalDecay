@@ -7,6 +7,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Kismet/GameplayStatics.h"
+#include <functional>
 
 static const FLinearColor HS_Bg      = FLinearColor(0.02f, 0.03f, 0.05f, 1.f);
 static const FLinearColor HS_Panel    = FLinearColor(0.05f, 0.07f, 0.10f, 1.f);
@@ -27,32 +28,42 @@ void SHighScoreWidget::Construct(const FArguments& InArgs)
 
     // Build level list on left (20%)
     TSharedRef<SScrollBox> LevelList = SNew(SScrollBox);
-    for (int32 i = 1; i <= 20; ++i)
+
+    std::function<void(TSharedRef<SScrollBox>)> BuildLevelList = [this, &BuildLevelList](TSharedRef<SScrollBox> List)
     {
-        LevelList->AddSlot()
-        [
-            SNew(SBox)
-            .HeightOverride(44.f)
+        List->ClearChildren();
+        for (int32 i = 1; i <= 20; ++i)
+        {
+            const bool bSelected = (i == SelectedLevel);
+            List->AddSlot()
             [
-                SNew(SButton)
-                .ButtonColorAndOpacity(i == 1 ? HS_BtnSel : HS_BtnBg)
-                .HAlign(HAlign_Center)
-                .VAlign(VAlign_Center)
-                .OnClicked_Lambda([this, i]() -> FReply
-                {
-                    SelectedLevel = i;
-                    RefreshScores();
-                    return FReply::Handled();
-                })
+                SNew(SBox)
+                .HeightOverride(44.f)
                 [
-                    SNew(STextBlock)
-                    .Text(FText::FromString(FString::Printf(TEXT("Level %d"), i)))
-                    .Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
-                    .ColorAndOpacity(HS_Text)
+                    SNew(SButton)
+                    .ButtonColorAndOpacity(bSelected ? HS_BtnSel : HS_BtnBg)
+                    .HAlign(HAlign_Center)
+                    .VAlign(VAlign_Center)
+                    .OnClicked_Lambda([this, i, List, &BuildLevelList]() -> FReply
+                    {
+                        SelectedLevel = i;
+                        BuildLevelList(List); // rebuild with new selection
+                        RefreshScores();
+                        return FReply::Handled();
+                    })
+                    [
+                        SNew(STextBlock)
+                        .Text(FText::FromString(
+                            FString::Printf(TEXT("Level %d"), i)))
+                        .Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
+                        .ColorAndOpacity(bSelected ? HS_Title : HS_Text)
+                    ]
                 ]
-            ]
-        ];
-    }
+            ];
+        }
+    };
+
+    BuildLevelList(LevelList);
 
     ScoreTable = SNew(SVerticalBox);
 

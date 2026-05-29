@@ -9,6 +9,7 @@
 #include "ReplayRecorder.h"
 #include "SCrashScreen.h"
 #include "SPauseWidget.h"
+#include "SLevelCompleteWidget.h"
 #include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -233,4 +234,31 @@ void AMyHUD::HidePauseScreen()
     }
 
     FSlateApplication::Get().SetKeyboardFocus(MyCockpitWidget);
+}
+
+void AMyHUD::ShowLevelCompleteScreen(float CompletionTime, int32 Level)
+{
+    if (!GEngine || !GEngine->GameViewport) return;
+
+    // Pause so nothing moves while screen is shown
+    APlayerController* PC = GetOwningPlayerController();
+    if (PC)
+    {
+        PC->SetPause(true);
+        PC->bShowMouseCursor = true;
+        FInputModeUIOnly InputMode;
+        PC->SetInputMode(InputMode);
+    }
+
+    if (MyCockpitWidget.IsValid())
+        MyCockpitWidget->SetInputEnabled(false);
+
+    MyLevelCompleteWidget = SNew(SLevelCompleteWidget)
+        .OwnerWorld(GetWorld())
+        .CompletionTime(CompletionTime)
+        .AccuracyPercent(GetAccuracyPercent())
+        .CurrentLevel(Level);
+
+    GEngine->GameViewport->AddViewportWidgetContent(
+        MyLevelCompleteWidget.ToSharedRef(), 10);
 }

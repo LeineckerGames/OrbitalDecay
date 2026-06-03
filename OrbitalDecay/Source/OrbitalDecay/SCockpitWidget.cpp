@@ -793,9 +793,15 @@ TSharedRef<SWidget> SCockpitWidget::BuildRightPanel()
                 ]
 
             + SVerticalBox::Slot()
-                .FillHeight(1.f)
+                .AutoHeight()
                 .Padding(0, 4)
                 [BuildAltitudePanel()]
+
+                // Mission briefing panel below altitude
+                + SVerticalBox::Slot()
+                .FillHeight(1.f)
+                .Padding(0, 4)
+                [BuildMissionPanel()]
         ];
 }
 
@@ -883,6 +889,75 @@ TSharedRef<SWidget> SCockpitWidget::BuildAltitudePanel()
                 ]
         ];
 }
+
+TSharedRef<SWidget> SCockpitWidget::BuildMissionPanel()
+{
+    return SNew(SBorder)
+        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+        .BorderBackgroundColor(C_PanelBg)
+        .Padding(6.f)
+        [
+            SNew(SVerticalBox)
+
+                // Header: "MISSION FROM [CHARACTER NAME]"
+                + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)
+                [
+                    SNew(STextBlock)
+                        .Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+                        .ColorAndOpacity(C_AccentGreen)
+                        .Text_Lambda([this]() -> FText
+                            {
+                                if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                                {
+                                    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                                    if (P && P->SelectedCharacter)
+                                        return FText::FromString(
+                                            FString::Printf(TEXT("MISSION FROM %s"),
+                                                *P->SelectedCharacter->CharacterName.ToUpper()));
+                                }
+                                return FText::FromString(TEXT("MISSION"));
+                            })
+                ]
+
+            // Divider
+            + SVerticalBox::Slot().AutoHeight().Padding(0, 2)
+                [
+                    SNew(SBorder)
+                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                        .BorderBackgroundColor(C_PanelBorder)
+                        .Padding(FMargin(0, 1))
+                        [SNew(SSpacer)]
+                ]
+
+            // Character portrait placeholder
+            + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left).Padding(0, 4)
+                [
+                    SNew(SBox)
+                        .WidthOverride(40.f)
+                        .HeightOverride(40.f)
+                        [
+                            SNew(SBorder)
+                                .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                                .BorderBackgroundColor(C_PanelBorder)
+                                [SNew(SSpacer)]
+                        ]
+                ]
+
+            // Typewriter mission text
+            + SVerticalBox::Slot().FillHeight(1.f).Padding(0, 4)
+                [
+                    SNew(STextBlock)
+                        .Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
+                        .ColorAndOpacity(C_DisplayText)
+                        .AutoWrapText(true)
+                        .Text_Lambda([this]() -> FText
+                            {
+                                return FText::FromString(DisplayedMissionText);
+                            })
+                ]
+        ];
+}
+
 
 // ─── SetInputEnabled ──────────────────────────────────────────────
 void SCockpitWidget::SetInputEnabled(bool bEnabled)
@@ -1029,5 +1104,55 @@ void SCockpitWidget::CheckAnswer()
         // Incorrect - keep focus on input box so player can retype immediately
         if (AnswerInputBox.IsValid())
             FSlateApplication::Get().SetKeyboardFocus(AnswerInputBox);
+    }
+}
+
+void SCockpitWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+    SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+    // Initialize typewriter text from the selected character
+    if (!bTypewriterActive && FullMissionText.IsEmpty())
+    {
+        if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+        {
+            ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+            if (P && P->SelectedCharacter)
+            {
+                FullMissionText = P->SelectedCharacter->MissionDialogue.ToString();
+                bTypewriterActive = true;
+                TypewriterIndex = 0;
+                DisplayedMissionText = TEXT("");
+            }
+        }
+    }
+
+    // Typewriter logic
+    if (bTypewriterActive && TypewriterIndex < FullMissionText.Len())
+    {
+        float CurrentCharsPerSecond = CharsPerSecond;
+        if (TypewriterIndex > 0)
+        {
+            TCHAR PrevChar = FullMissionText[TypewriterIndex - 1];
+            if (PrevChar == '.' || PrevChar == '!' || PrevChar == '?')
+            {
+                CurrentCharsPerSecond = CharsPerSecond * 0.2f;
+            }
+        }
+
+        TypewriterAccumulator += InDeltaTime;
+        float TimePerChar = 1.0f / CurrentCharsPerSecond;
+
+        while (TypewriterAccumulator >= TimePerChar && TypewriterIndex < FullMissionText.Len())
+        {
+            DisplayedMissionText += FullMissionText[TypewriterIndex];
+            TypewriterIndex++;
+            TypewriterAccumulator -= TimePerChar;
+        }
+
+        if (TypewriterIndex >= FullMissionText.Len())
+        {
+            bTypewriterActive = false;
+        }
     }
 }

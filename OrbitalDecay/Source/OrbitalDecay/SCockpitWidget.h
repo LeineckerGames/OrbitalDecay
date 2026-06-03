@@ -53,6 +53,7 @@ public:
     void Construct(const FArguments& InArgs);
     virtual bool SupportsKeyboardFocus() const override { return true; }
     virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+    virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
     TWeakObjectPtr<AMyHUD> MyOwnerHUD;
@@ -61,6 +62,13 @@ private:
     FText       ResultText;
     FSlateColor ResultColor;
     bool        bInputEnabled = true;
+
+    FString FullMissionText;
+    FString DisplayedMissionText;
+    float TypewriterAccumulator = 0.0f;
+    float CharsPerSecond = 20.0f;
+    bool bTypewriterActive = false;
+    int32 TypewriterIndex = 0;
 
     TSharedRef<SWidget> BuildWindowArea();
     TSharedRef<SWidget> BuildBottomPanel();
@@ -74,6 +82,7 @@ private:
     TSharedRef<SWidget> BuildKeypad();
     TSharedRef<SWidget> BuildMinimap();
     TSharedRef<SWidget> BuildAltitudePanel();
+    TSharedRef<SWidget> BuildMissionPanel();
     TSharedRef<SWidget> BuildKeypadButton(FString Label);
 
     FReply OnKeypadButtonClicked(FString Label);

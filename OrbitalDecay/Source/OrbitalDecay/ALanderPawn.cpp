@@ -46,12 +46,6 @@ void ALanderPawn::BeginPlay()
         int32 RandomIndex = FMath::RandRange(0, MissionCharacters.Num() - 1);
         SelectedCharacter = MissionCharacters[RandomIndex];
         MissionBriefingDuration = SelectedCharacter->BriefingDuration;
-
-        if (GEngine)
-            GEngine->AddOnScreenDebugMessage(-1, MissionBriefingDuration, FColor::White,
-                FString::Printf(TEXT("%s: %s"),
-                    *SelectedCharacter->CharacterName,
-                    *SelectedCharacter->MissionDialogue.ToString()));
     }
 
     FTimerHandle GameStartTimer;
@@ -178,14 +172,14 @@ void ALanderPawn::Tick(float DeltaTime)
             float DistanceFeet = DistanceCM * 0.0328084f;
             CurrentAltitude = DistanceFeet;
 
-            if (HitResult.Distance < 50.0f && !bHasLanded)
+            if (HitResult.Distance < 375.0f && !bHasLanded)
             {
                 bHasLanded = true;
                 CurrentVelocity = FVector::ZeroVector;
                 bIsBoosting = false;
 
                 FVector LandedPosition = GetActorLocation();
-                LandedPosition.Z = HitResult.ImpactPoint.Z + 50.0f;
+                LandedPosition.Z = HitResult.ImpactPoint.Z + 375.0f;
                 SetActorLocation(LandedPosition);
 
                 bool bOnLandingPad = false;

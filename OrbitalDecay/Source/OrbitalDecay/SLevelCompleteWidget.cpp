@@ -8,6 +8,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Kismet/GameplayStatics.h"
+#include "OrbitalSaveGame.h"
 
 static const FLinearColor LC_Bg       = FLinearColor(0.02f, 0.03f, 0.05f, 0.93f);
 static const FLinearColor LC_Panel    = FLinearColor(0.05f, 0.08f, 0.06f, 1.f);
@@ -398,13 +399,19 @@ FReply SLevelCompleteWidget::OnNextLevelClicked()
 
     if (MyWorld)
     {
-        // Load next level — Level_2, Level_3, etc.
+
+        // GlobalLevel is already incremented and saved by TriggerLevelComplete
+        // so reloading the same UE level loads the next game level automatically
+        UGameplayStatics::OpenLevel(MyWorld,
+            FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
+
+        /*// Load next level — Level_2, Level_3, etc.
         // For now logs since levels don't exist yet
         int32 NextLevel = CurrentLevel + 1;
         FString LevelName = FString::Printf(TEXT("Level_%d"), NextLevel);
         UE_LOG(LogTemp, Warning, TEXT("Loading %s"), *LevelName);
         // Uncomment when levels exist:
-        // UGameplayStatics::OpenLevel(MyWorld, FName(*LevelName));
+        // UGameplayStatics::OpenLevel(MyWorld, FName(*LevelName));*/
     }
     return FReply::Handled();
 }
@@ -415,9 +422,18 @@ FReply SLevelCompleteWidget::OnRestartClicked()
         GEngine->GameViewport->RemoveAllViewportWidgets();
 
     if (MyWorld)
+    {
+        // Reset level progress to 1 before reloading
+        UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
+            UGameplayStatics::LoadGameFromSlot(
+                UOrbitalSaveGame::SaveSlotName, 0));
+        if (SaveGame) {
+            SaveGame->ResetToLevelOne();
+        }
+
         UGameplayStatics::OpenLevel(MyWorld,
             FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
-
+    }
     return FReply::Handled();
 }
 

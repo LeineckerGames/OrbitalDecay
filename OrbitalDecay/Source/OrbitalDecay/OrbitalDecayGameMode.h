@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "ReplayRecorder.h"
+#include "OrbitalSaveGame.h"
 #include "OrbitalDecayGameMode.generated.h"
 
 UENUM(BlueprintType)
@@ -35,9 +36,15 @@ public:
     void TriggerFailure();
     void StartReplay();
     void RestartGame(); // stub   Sprint 5
+    void TriggerLevelComplete(); //For level tracking
 
     UPROPERTY()
     AReplayRecorder* ReplayRecorder = nullptr;
+
+//For level tracking
+//TODO: Can this go into protected?
+private:
+    UOrbitalSaveGame* GetOrCreateSaveGame();
 
 protected:
     virtual void BeginPlay() override;

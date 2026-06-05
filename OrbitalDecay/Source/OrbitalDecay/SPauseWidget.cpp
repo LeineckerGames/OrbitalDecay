@@ -6,6 +6,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Kismet/GameplayStatics.h"
+#include "OrbitalSaveGame.h"
 
 static const FLinearColor PW_Bg      = FLinearColor(0.02f, 0.03f, 0.05f, 0.92f);
 static const FLinearColor PW_Panel   = FLinearColor(0.05f, 0.07f, 0.10f, 1.f);
@@ -144,9 +145,19 @@ FReply SPauseWidget::OnRestartClicked()
     if (GEngine && GEngine->GameViewport)
         GEngine->GameViewport->RemoveAllViewportWidgets();
 
-    if (MyWorld)
+    if (MyWorld) {
+        // Reset level progress to 1
+        UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
+            UGameplayStatics::LoadGameFromSlot(
+                UOrbitalSaveGame::SaveSlotName, 0));
+
+        if (SaveGame) {
+            SaveGame->ResetToLevelOne();
+        }
+
         UGameplayStatics::OpenLevel(MyWorld,
             FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
+    }
 
     return FReply::Handled();
 }

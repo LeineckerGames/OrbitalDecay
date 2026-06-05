@@ -6,6 +6,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Kismet/GameplayStatics.h"
+#include "OrbitalSaveGame.h"
 
 void SCrashScreen::Construct(const FArguments& InArgs)
 {
@@ -105,6 +106,14 @@ FReply SCrashScreen::OnRetryClicked()
         {
             GEngine->GameViewport->RemoveViewportWidgetContent(
                 SharedThis(this));
+        }
+
+        //Reset level progress to 1 on crash
+        UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
+            UGameplayStatics::LoadGameFromSlot(
+                UOrbitalSaveGame::SaveSlotName, 0));
+        if (SaveGame) {
+            SaveGame->ResetToLevelOne();
         }
 
         UGameplayStatics::OpenLevel(MyWorld,

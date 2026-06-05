@@ -19,6 +19,11 @@ void AOrbitalDecayGameMode::BeginPlay()
 {
     Super::BeginPlay();
 
+    //For level tracking
+    //Load saved level so it persists across reloads
+    UOrbitalSaveGame* SaveGame = GetOrCreateSaveGame();
+    GlobalLevel = SaveGame->LoadCurrentLevel();
+
     TArray<AActor*> FoundActors;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AReplayRecorder::StaticClass(), FoundActors);
     if (FoundActors.Num() > 0)
@@ -66,6 +71,38 @@ void AOrbitalDecayGameMode::SetGameState(EGameState NewState)
         break;
     }
 }
+
+//---------------------------For Level tracking----------------------------------
+UOrbitalSaveGame* AOrbitalDecayGameMode::GetOrCreateSaveGame()
+{
+    UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
+        UGameplayStatics::LoadGameFromSlot(UOrbitalSaveGame::SaveSlotName, 0));
+
+    if (!SaveGame)
+    {
+        SaveGame = Cast<UOrbitalSaveGame>(
+            UGameplayStatics::CreateSaveGameObject(UOrbitalSaveGame::StaticClass()));
+        UGameplayStatics::SaveGameToSlot(SaveGame, UOrbitalSaveGame::SaveSlotName, 0);
+    }
+    return SaveGame;
+}
+
+void AOrbitalDecayGameMode::TriggerLevelComplete()
+{
+    UOrbitalSaveGame* SaveGame = GetOrCreateSaveGame();
+
+    if (GlobalLevel >= 20)
+    {
+        // All levels done — reset back to 1 for next playthrough
+        SaveGame->ResetToLevelOne();
+        return;
+    }
+
+    // Increment and save so the next BeginPlay loads the right level
+    GlobalLevel++;
+    SaveGame->SaveCurrentLevel(GlobalLevel);
+}
+//-------------------------------------------------------------------------------
 
 void AOrbitalDecayGameMode::TriggerSuccess() { SetGameState(EGameState::Success); }
 void AOrbitalDecayGameMode::TriggerFailure() { SetGameState(EGameState::Failure); }

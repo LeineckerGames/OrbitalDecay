@@ -8,6 +8,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Kismet/GameplayStatics.h"
+#include "OrbitalSaveGame.h"
 
 static const FLinearColor LS_Bg        = FLinearColor(0.02f, 0.03f, 0.05f, 1.f);
 static const FLinearColor LS_Border    = FLinearColor(0.15f, 0.20f, 0.25f, 1.f);
@@ -200,13 +201,26 @@ FReply SLevelSelectWidget::OnPlayClicked()
 {
     if (MyWorld && SelectedLevel > 0)
     {
-        // Levels 1-20 will map to level files when created
+        /*// Levels 1-20 will map to level files when created
         // For now just log — wire to actual level files when ready
         UE_LOG(LogTemp, Warning, TEXT("Loading Level %d"), SelectedLevel);
 
         // When level files exist, use:
         // FString LevelName = FString::Printf(TEXT("Level_%d"), SelectedLevel);
-        // UGameplayStatics::OpenLevel(MyWorld, FName(*LevelName));
+        // UGameplayStatics::OpenLevel(MyWorld, FName(*LevelName));*/
+
+        //Save the selected level so BeginPlay loads it correctly
+        UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
+            UGameplayStatics::LoadGameFromSlot(
+                UOrbitalSaveGame::SaveSlotName, 0));
+        if (!SaveGame)
+            SaveGame = Cast<UOrbitalSaveGame>(
+                UGameplayStatics::CreateSaveGameObject(
+                    UOrbitalSaveGame::StaticClass()));
+        if (SaveGame) SaveGame->SaveCurrentLevel(SelectedLevel);
+
+        UGameplayStatics::OpenLevel(MyWorld, FName("test"));
+
     }
     return FReply::Handled();
 }

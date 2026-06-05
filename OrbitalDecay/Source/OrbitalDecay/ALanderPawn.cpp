@@ -208,6 +208,10 @@ void ALanderPawn::Tick(float DeltaTime)
                             // Get current level from game mode
                             AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
                                 GetWorld()->GetAuthGameMode());
+
+                            // Increment GlobalLevel and save it before showing the screen
+                            if (GM) GM->TriggerLevelComplete();
+
                             int32 CurrentLevelNum = GM ? GM->GlobalLevel : 1;
 
                             // Show level complete screen with time and accuracy

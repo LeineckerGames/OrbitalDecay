@@ -24,3 +24,22 @@ TArray<FScoreEntry> UOrbitalSaveGame::GetScores(int32 Level) const
     const FScoreList* Found = LevelScores.Find(Level);
     return Found ? Found->Entries : TArray<FScoreEntry>();
 }
+
+//---------------------------For Level tracking----------------------------------
+void UOrbitalSaveGame::SaveCurrentLevel(int32 Level)
+{
+    CurrentLevel = Level;
+    UGameplayStatics::SaveGameToSlot(this, SaveSlotName, 0);
+}
+
+int32 UOrbitalSaveGame::LoadCurrentLevel() const
+{
+    return CurrentLevel;
+}
+
+void UOrbitalSaveGame::ResetToLevelOne()
+{
+    CurrentLevel = 1;
+    UGameplayStatics::SaveGameToSlot(this, SaveSlotName, 0);
+}
+//-------------------------------------------------------------------------------

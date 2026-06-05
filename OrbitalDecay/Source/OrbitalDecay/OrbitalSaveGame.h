@@ -45,4 +45,12 @@ public:
 
     static const FString SaveSlotName;
     static const int32   MaxScoresPerLevel = 10;
+
+    //For Level tracking
+    UPROPERTY()
+    int32 CurrentLevel = 1;
+
+    void SaveCurrentLevel(int32 Level);
+    int32 LoadCurrentLevel() const;
+    void ResetToLevelOne();
 };

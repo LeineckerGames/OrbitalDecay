@@ -660,10 +660,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildComputerDisplay()
                                         .HintText(FText::FromString(TEXT("_ _ _")))
                                         .Font(FCoreStyle::GetDefaultFontStyle("Bold", 28))
                                         .ColorAndOpacity(C_DisplayText)
-                                        .IsReadOnly_Lambda([this]()
-                                            {
-                                                return MyOwnerHUD.IsValid() ? !MyOwnerHUD->bQuestionActive : true;
-                                            })
+                                        .IsReadOnly(true)
                                         .OnKeyDownHandler(this, &SCockpitWidget::OnAnswerCommitted)
                                 ]
                         ]
@@ -986,6 +983,23 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
         return FReply::Handled();
     }
 
+    if (InKeyEvent.GetKey() == EKeys::R)
+    {
+        if (MyOwnerHUD->bQuestionActive)
+        {
+            MyOwnerHUD->bQuestionActive = false;
+            MyOwnerHUD->CurrentQuestionText = TEXT("");
+            ResultText = FText::FromString(TEXT("CANCELLED"));
+            ResultColor = FSlateColor(C_AccentAmber);
+
+            if (AnswerInputBox.IsValid())
+                AnswerInputBox->SetText(FText::GetEmpty());
+
+            FSlateApplication::Get().SetKeyboardFocus(AsShared());
+        }
+        return FReply::Handled();
+    }
+
     if (!MyOwnerHUD->bQuestionActive)
     {
         FString Type = TEXT("");
@@ -1014,9 +1028,48 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
                             return false;
                         }));
             }
+            FSlateApplication::Get().SetKeyboardFocus(AsShared());
             return FReply::Handled();
         }
     }
+
+    // Number key input - only when question is active
+    if (MyOwnerHUD->bQuestionActive)
+    {
+        FString NumStr = TEXT("");
+        if (InKeyEvent.GetKey() == EKeys::Zero || InKeyEvent.GetKey() == EKeys::NumPadZero)  NumStr = "0";
+        else if (InKeyEvent.GetKey() == EKeys::One || InKeyEvent.GetKey() == EKeys::NumPadOne)   NumStr = "1";
+        else if (InKeyEvent.GetKey() == EKeys::Two || InKeyEvent.GetKey() == EKeys::NumPadTwo)   NumStr = "2";
+        else if (InKeyEvent.GetKey() == EKeys::Three || InKeyEvent.GetKey() == EKeys::NumPadThree) NumStr = "3";
+        else if (InKeyEvent.GetKey() == EKeys::Four || InKeyEvent.GetKey() == EKeys::NumPadFour)  NumStr = "4";
+        else if (InKeyEvent.GetKey() == EKeys::Five || InKeyEvent.GetKey() == EKeys::NumPadFive)  NumStr = "5";
+        else if (InKeyEvent.GetKey() == EKeys::Six || InKeyEvent.GetKey() == EKeys::NumPadSix)   NumStr = "6";
+        else if (InKeyEvent.GetKey() == EKeys::Seven || InKeyEvent.GetKey() == EKeys::NumPadSeven) NumStr = "7";
+        else if (InKeyEvent.GetKey() == EKeys::Eight || InKeyEvent.GetKey() == EKeys::NumPadEight) NumStr = "8";
+        else if (InKeyEvent.GetKey() == EKeys::Nine || InKeyEvent.GetKey() == EKeys::NumPadNine)  NumStr = "9";
+        else if (InKeyEvent.GetKey() == EKeys::Enter)
+        {
+            CheckAnswer();
+            return FReply::Handled();
+        }
+        else if (InKeyEvent.GetKey() == EKeys::BackSpace)
+        {
+            if (AnswerInputBox.IsValid())
+            {
+                FString Current = AnswerInputBox->GetText().ToString();
+                if (Current.Len() > 0)
+                    AnswerInputBox->SetText(FText::FromString(Current.LeftChop(1)));
+            }
+            return FReply::Handled();
+        }
+
+        if (!NumStr.IsEmpty())
+        {
+            AppendToInput(NumStr);
+            return FReply::Handled();
+        }
+    }
+
     return FReply::Unhandled();
 }
 
@@ -1093,18 +1146,7 @@ void SCockpitWidget::CheckAnswer()
     }
 
     AnswerInputBox->SetText(FText::GetEmpty());
-
-    if (PlayerAnswer == MyOwnerHUD->CurrentCorrectAnswer)
-    {
-        // Correct - focus widget so A/S/M/D keypresses are received
-        FSlateApplication::Get().SetKeyboardFocus(AsShared());
-    }
-    else
-    {
-        // Incorrect - keep focus on input box so player can retype immediately
-        if (AnswerInputBox.IsValid())
-            FSlateApplication::Get().SetKeyboardFocus(AnswerInputBox);
-    }
+    FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
 
 void SCockpitWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)

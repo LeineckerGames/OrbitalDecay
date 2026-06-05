@@ -116,7 +116,7 @@ public:
 
     float CurrentBoostTimer = 0.0f;
     float LowGravity = -160.0f;
-    float HighGravity = -500.0f;
+    float HighGravity = -300.0f;
 
     float LevelTimeSeconds = 0.f;
 

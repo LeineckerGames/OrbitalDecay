@@ -99,68 +99,68 @@ void ADiaMONDSQUARE::CreateTriangles()
 
 void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
 {
-	if ((!Config.Mesh && !Config.ActorClass) || Vertices.IsEmpty()) return;
+    if ((!Config.Mesh && !Config.ActorClass) || Vertices.IsEmpty()) return;
 
-	TArray<FVector> PlacedPositions;
+    TArray<FVector> PlacedPositions;
 
-	TArray<int32> Indices;
-	for (int32 i = 0; i < Vertices.Num(); ++i) Indices.Add(i);
-	for (int32 i = Indices.Num() - 1; i > 0; --i)
-	{
-		int32 j = FMath::RandRange(0, i);
-		Indices.Swap(i, j);
-	}
+    TArray<int32> Indices;
+    for (int32 i = 0; i < Vertices.Num(); ++i) Indices.Add(i);
+    for (int32 i = Indices.Num() - 1; i > 0; --i)
+    {
+        int32 j = FMath::RandRange(0, i);
+        Indices.Swap(i, j);
+    }
 
-	int32 Placed = 0;
+    int32 Placed = 0;
 
-	for (int32 Idx : Indices)
-	{
-		if (Placed >= Config.Count) break;
+    for (int32 Idx : Indices)
+    {
+        if (Placed >= Config.Count) break;
 
-		FVector WorldPos = GetActorTransform().TransformPosition(Vertices[Idx]);
+        FVector WorldPos = GetActorTransform().TransformPosition(Vertices[Idx]);
 
-		bool bTooClose = false;
-		for (const FVector& Existing : PlacedPositions)
-		{
-			if (FVector::Dist(WorldPos, Existing) < Config.MinSpacing)
-			{
-				bTooClose = true;
-				break;
-			}
-		}
-		if (bTooClose) continue;
+        bool bTooClose = false;
+        for (const FVector& Existing : PlacedPositions)
+        {
+            if (FVector::Dist(WorldPos, Existing) < Config.MinSpacing)
+            {
+                bTooClose = true;
+                break;
+            }
+        }
+        if (bTooClose) continue;
 
-		FVector SpawnLocation = WorldPos + FVector(0.0f, 0.0f, Config.ZOffset);
+        FVector SpawnLocation = WorldPos + FVector(0.0f, 0.0f, Config.ZOffset);
 
-		// --- existing mesh component spawn (unchanged) ---
-		if (Config.Mesh)
-		{
-			UStaticMeshComponent* NewObj = NewObject<UStaticMeshComponent>(this);
-			NewObj->SetStaticMesh(Config.Mesh);
-			NewObj->SetupAttachment(GetRootComponent());
-			NewObj->RegisterComponent();
-			NewObj->SetWorldLocation(SpawnLocation);
-			SpawnedObjects.Add(NewObj);
-		}
+        // Actor path takes priority — cleaner, scale is reliable
+        if (Config.ActorClass)
+        {
+            FActorSpawnParameters SpawnParams;
+            SpawnParams.Owner = this;
+            FTransform SpawnTransform(FRotator::ZeroRotator, SpawnLocation, Config.MeshScale);
+            AActor* NewActor = GetWorld()->SpawnActor<AActor>(
+                Config.ActorClass,
+                SpawnTransform,
+                SpawnParams
+            );
+            if (NewActor)
+            {
+                SpawnedActors.Add(NewActor);
+            }
+        }
+        // Only use component path if no ActorClass is set
+        else if (Config.Mesh)
+        {
+            UStaticMeshComponent* NewObj = NewObject<UStaticMeshComponent>(this);
+            NewObj->SetStaticMesh(Config.Mesh);
+            NewObj->SetupAttachment(GetRootComponent());
+            NewObj->RegisterComponent();
+            NewObj->SetWorldLocation(SpawnLocation);
+            NewObj->SetWorldScale3D(Config.MeshScale);
+            SpawnedObjects.Add(NewObj);
+        }
 
-		// --- NEW: actor spawn ---
-		if (Config.ActorClass)
-		{
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.Owner = this;
-			AActor* NewActor = GetWorld()->SpawnActor<AActor>(
-				Config.ActorClass,
-				SpawnLocation,
-				FRotator::ZeroRotator,
-				SpawnParams
-			);
-			if (NewActor)
-			{
-				SpawnedActors.Add(NewActor);
-			}
-		}
-
-		PlacedPositions.Add(WorldPos);
-		++Placed;
-	}
+        PlacedPositions.Add(WorldPos);
+        ++Placed;
+    }
 }

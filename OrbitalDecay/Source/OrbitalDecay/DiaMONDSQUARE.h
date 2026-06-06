@@ -27,6 +27,9 @@ struct FObjectPlacementConfig
 
     UPROPERTY(EditAnywhere)
     float ZOffset = 0.0f;
+
+    UPROPERTY(EditAnywhere)
+    FVector MeshScale = FVector(1.0f, 1.0f, 1.0f);
 };
 
 UCLASS()
@@ -56,7 +59,8 @@ public:
     float UVScale = 0;
 
     UPROPERTY(EditAnywhere)               
-        TArray<FObjectPlacementConfig> ObjectLayers;
+    TArray<FObjectPlacementConfig> ObjectLayers;
+
 
 protected:
     virtual void BeginPlay() override;

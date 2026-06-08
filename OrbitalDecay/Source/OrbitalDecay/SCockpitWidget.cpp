@@ -645,7 +645,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildComputerDisplay()
                                         if (MyOwnerHUD.IsValid())
                                         {
                                             FString Q = MyOwnerHUD->CurrentQuestionText;
-                                            if (Q.IsEmpty()) return FText::FromString(TEXT("PRESS A S M D"));
+                                            if (Q.IsEmpty()) return FText::FromString(TEXT("PRESS W A S D"));
                                             return FText::FromString(Q);
                                         }
                                         return FText::FromString(TEXT("NO HUD"));
@@ -969,7 +969,23 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
     if (!bInputEnabled) return FReply::Handled();
 
     ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-    if (!P || !P->bGameStarted) return FReply::Handled();
+    if (!P || !P->bGameStarted)
+    {
+        // Allow pause key even during briefing
+        if (InKeyEvent.GetKey() == EKeys::P)
+        {
+            AMyHUD* HUD = Cast<AMyHUD>(MyOwnerHUD.Get());
+            if (HUD)
+            {
+                if (HUD->bIsPaused)
+                    HUD->HidePauseScreen();
+                else
+                    HUD->ShowPauseScreen();
+            }
+            return FReply::Handled();
+        }
+        return FReply::Handled();
+    }
 
     if (InKeyEvent.GetKey() == EKeys::L)
     {
@@ -979,6 +995,22 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
             ResultText = FText::FromString(P->bForwardThrustMode ?
                 TEXT("FORWARD THRUST") : TEXT("VERTICAL THRUST"));
             ResultColor = FSlateColor(C_AccentAmber);
+        }
+        return FReply::Handled();
+    }
+
+    if (InKeyEvent.GetKey() == EKeys::P)
+    {
+        if (MyOwnerHUD.IsValid())
+        {
+            AMyHUD* HUD = Cast<AMyHUD>(MyOwnerHUD.Get());
+            if (HUD)
+            {
+                if (HUD->bIsPaused)
+                    HUD->HidePauseScreen();
+                else
+                    HUD->ShowPauseScreen();
+            }
         }
         return FReply::Handled();
     }
@@ -1005,7 +1037,7 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
         FString Type = TEXT("");
         if (InKeyEvent.GetKey() == EKeys::A) Type = "a";
         else if (InKeyEvent.GetKey() == EKeys::S) Type = "s";
-        else if (InKeyEvent.GetKey() == EKeys::M) Type = "m";
+        else if (InKeyEvent.GetKey() == EKeys::W) Type = "m";
         else if (InKeyEvent.GetKey() == EKeys::D) Type = "d";
 
         if (!Type.IsEmpty())
@@ -1167,6 +1199,13 @@ void SCockpitWidget::Tick(const FGeometry& AllottedGeometry, const double InCurr
                 DisplayedMissionText = TEXT("");
             }
         }
+    }
+
+    // Don't advance typewriter while paused
+    if (MyOwnerHUD.IsValid())
+    {
+        AMyHUD* HUD = Cast<AMyHUD>(MyOwnerHUD.Get());
+        if (HUD && HUD->bIsPaused) return;
     }
 
     // Typewriter logic

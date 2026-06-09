@@ -39,10 +39,10 @@ public:
     float CurrentAltitude = 0.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float Fuel = 1000.0f;
+    float Fuel = 100.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float MaxFuel = 1000.0f;
+    float MaxFuel = 100.0f;
 
     UPROPERTY(EditAnywhere, Category = "Flight")
     float DefaultThrust = 100.0f;

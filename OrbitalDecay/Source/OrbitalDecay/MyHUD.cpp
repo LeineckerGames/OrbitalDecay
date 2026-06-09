@@ -98,15 +98,6 @@ void AMyHUD::DrawHUD()
         }
     }
 
-    // Draw velocity in the top-left corner
-    ALanderPawn* MyPawn = Cast<ALanderPawn>(GetOwningPawn());
-    if (MyPawn)
-    {
-        FVector Vel = MyPawn->CurrentVelocity;
-        FString VelText = FString::Printf(TEXT("Velocity: X=%.1f Y=%.1f Z=%.1f"), Vel.X, Vel.Y, Vel.Z);
-        DrawText(VelText, FColor::White, 20.f, 20.f, nullptr, 1.5f);
-    }
-
     // Draw success/failure overlay text in the center of the screen
     // Canvas->SizeX/SizeY gives screen dimensions for positioning
     if (bShowSuccess)

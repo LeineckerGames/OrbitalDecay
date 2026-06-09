@@ -430,11 +430,11 @@ TSharedRef<SWidget> SCockpitWidget::BuildFuelGauge()
                                             ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
                                             if (P)
                                             {
-                                                float Pct = FMath::Clamp(P->Fuel / 1000.f, 0.f, 1.f);
-                                                return FOptionalSize(Pct * 150.f);
+                                                float Pct = FMath::Clamp(P->Fuel / P->MaxFuel, 0.f, 1.f);
+                                                return FOptionalSize(Pct * 188.f);
                                             }
                                         }
-                                        return FOptionalSize(150.f);
+                                        return FOptionalSize(188.f);
                                     })
                                 [
                                     SNew(SBorder)
@@ -444,7 +444,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildFuelGauge()
                                                 if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
                                                 {
                                                     ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                                                    if (P) return P->Fuel < 100.f ? C_FuelLow : C_FuelFull;
+                                                    if (P) return (P->Fuel / P->MaxFuel) <= 0.20f ? C_FuelLow : C_FuelFull;
                                                 }
                                                 return C_FuelFull;
                                             })
@@ -1148,9 +1148,17 @@ void SCockpitWidget::CheckAnswer()
             }
             else if (MyOwnerHUD->QuestionType == "m")
             {
-                P->ActivateBoost();
-                ResultText = FText::FromString(P->bForwardThrustMode ?
-                    TEXT("CORRECT! FORWARD BOOST!") : TEXT("CORRECT! BOOST!"));
+                if (P->Fuel <= 0.0f)
+                {
+                    ResultText = FText::FromString(TEXT("NO FUEL!"));
+                    ResultColor = FSlateColor(C_FuelLow);
+                }
+                else
+                {
+                    P->ActivateBoost();
+                    ResultText = FText::FromString(P->bForwardThrustMode ?
+                        TEXT("CORRECT! FORWARD BOOST!") : TEXT("CORRECT! BOOST!"));
+                }
             }
             else if (MyOwnerHUD->QuestionType == "a")
             {

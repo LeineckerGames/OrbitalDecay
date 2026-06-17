@@ -24,6 +24,9 @@ private:
     TSharedPtr<STextBlock> SelectedLevelText;
     TSharedPtr<SButton>    PlayButton;
 
+    USoundWave* ButtonClickSound = nullptr;
+    void PlayButtonSound();
+
     TSharedRef<SWidget> BuildLevelGrid();
     void OnLevelButtonClicked(int32 Level);
     FReply OnPlayClicked();

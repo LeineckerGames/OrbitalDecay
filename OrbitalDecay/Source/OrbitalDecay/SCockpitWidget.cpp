@@ -926,7 +926,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildMissionPanel()
                         [SNew(SSpacer)]
                 ]
 
-            // Character portrait placeholder
+            // Character portrait
             + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left).Padding(0, 4)
                 [
                     SNew(SBox)
@@ -936,7 +936,23 @@ TSharedRef<SWidget> SCockpitWidget::BuildMissionPanel()
                             SNew(SBorder)
                                 .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
                                 .BorderBackgroundColor(C_PanelBorder)
-                                [SNew(SSpacer)]
+                                [
+                                    SNew(SImage)
+                                        .Image_Lambda([this]() -> const FSlateBrush*
+                                            {
+                                                if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                                                {
+                                                    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                                                    if (P && P->SelectedCharacter && P->SelectedCharacter->CharacterPortrait)
+                                                    {
+                                                        PortraitBrush.SetResourceObject(P->SelectedCharacter->CharacterPortrait);
+                                                        PortraitBrush.ImageSize = FVector2D(40.f, 40.f);
+                                                        return &PortraitBrush;
+                                                    }
+                                                }
+                                                return FCoreStyle::Get().GetBrush("WhiteBrush");
+                                            })
+                                ]
                         ]
                 ]
 
@@ -1036,9 +1052,9 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
     {
         FString Type = TEXT("");
         if (InKeyEvent.GetKey() == EKeys::A) Type = "a";
-        else if (InKeyEvent.GetKey() == EKeys::S) Type = "s";
+        else if (InKeyEvent.GetKey() == EKeys::S) Type = "d";
         else if (InKeyEvent.GetKey() == EKeys::W) Type = "m";
-        else if (InKeyEvent.GetKey() == EKeys::D) Type = "d";
+        else if (InKeyEvent.GetKey() == EKeys::D) Type = "s";
 
         if (!Type.IsEmpty())
         {

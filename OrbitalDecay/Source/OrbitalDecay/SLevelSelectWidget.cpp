@@ -9,6 +9,7 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Kismet/GameplayStatics.h"
 #include "OrbitalSaveGame.h"
+#include "Sound/SoundWave.h"
 
 static const FLinearColor LS_Bg        = FLinearColor(0.02f, 0.03f, 0.05f, 1.f);
 static const FLinearColor LS_Border    = FLinearColor(0.15f, 0.20f, 0.25f, 1.f);
@@ -24,6 +25,8 @@ void SLevelSelectWidget::Construct(const FArguments& InArgs)
 {
     MyWorld = InArgs._OwnerWorld;
     OnBack  = InArgs._OnBack;
+
+    ButtonClickSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/342200__christopherderp__videogame-menu-button-click.342200__christopherderp__videogame-menu-button-click"));
 
     ChildSlot
     [
@@ -172,6 +175,7 @@ TSharedRef<SWidget> SLevelSelectWidget::BuildLevelGrid()
             .VAlign(VAlign_Center)
             .OnClicked_Lambda([this]() -> FReply
             {
+                PlayButtonSound();
                 if (MyWorld)
                     UGameplayStatics::OpenLevel(MyWorld, FName("test"));
                 return FReply::Handled();
@@ -191,6 +195,7 @@ TSharedRef<SWidget> SLevelSelectWidget::BuildLevelGrid()
 
 void SLevelSelectWidget::OnLevelButtonClicked(int32 Level)
 {
+    PlayButtonSound();
     SelectedLevel = Level;
     SelectedLevelText->SetText(
         FText::FromString(FString::Printf(TEXT("Level %d selected"), Level)));
@@ -199,6 +204,8 @@ void SLevelSelectWidget::OnLevelButtonClicked(int32 Level)
 
 FReply SLevelSelectWidget::OnPlayClicked()
 {
+    PlayButtonSound();
+
     if (MyWorld && SelectedLevel > 0)
     {
         /*// Levels 1-20 will map to level files when created
@@ -219,7 +226,11 @@ FReply SLevelSelectWidget::OnPlayClicked()
                     UOrbitalSaveGame::StaticClass()));
         if (SaveGame) SaveGame->SaveCurrentLevel(SelectedLevel);
 
-        UGameplayStatics::OpenLevel(MyWorld, FName("test"));
+        FTimerHandle LoadLevelTimer;
+        MyWorld->GetTimerManager().SetTimer(LoadLevelTimer, [this]()
+            {
+                UGameplayStatics::OpenLevel(MyWorld, FName("test"));
+            }, 0.3f, false);
 
     }
     return FReply::Handled();
@@ -227,6 +238,13 @@ FReply SLevelSelectWidget::OnPlayClicked()
 
 FReply SLevelSelectWidget::OnBackClicked()
 {
+    PlayButtonSound();
     OnBack.ExecuteIfBound();
     return FReply::Handled();
+}
+
+void SLevelSelectWidget::PlayButtonSound()
+{
+    if (ButtonClickSound && MyWorld)
+        UGameplayStatics::PlaySound2D(MyWorld, ButtonClickSound);
 }

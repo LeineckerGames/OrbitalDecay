@@ -63,6 +63,8 @@ private:
     FSlateColor ResultColor;
     bool        bInputEnabled = true;
 
+    mutable FSlateBrush PortraitBrush;
+
     FString FullMissionText;
     FString DisplayedMissionText;
     float TypewriterAccumulator = 0.0f;

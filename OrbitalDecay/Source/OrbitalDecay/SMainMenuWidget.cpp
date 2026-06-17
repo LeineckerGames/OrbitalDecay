@@ -9,6 +9,8 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Misc/App.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundWave.h"
 
 // ─── Colors ───────────────────────────────────────────────────────
 static const FLinearColor MM_Bg         = FLinearColor(0.02f, 0.03f, 0.05f, 1.f);
@@ -48,6 +50,8 @@ static TSharedRef<SWidget> MakeMenuButton(
 void SMainMenuWidget::Construct(const FArguments& InArgs)
 {
     MyWorld = InArgs._OwnerWorld;
+
+    ButtonClickSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/342200__christopherderp__videogame-menu-button-click.342200__christopherderp__videogame-menu-button-click"));
 
     ContentArea = SNew(SBox);
 
@@ -182,6 +186,7 @@ TSharedRef<SWidget> SMainMenuWidget::BuildLevelSelectPage()
 TSharedRef<SWidget> SMainMenuWidget::BuildHighScoresPage()
 {
     return SNew(SHighScoreWidget)
+        .OwnerWorld(MyWorld)
         .OnBack_Lambda([this]()
         {
             NavigateTo(BuildHomePage());
@@ -261,37 +266,59 @@ TSharedRef<SWidget> SMainMenuWidget::BuildAboutPage()
 // ─── Button Handlers ─────────────────────────────────────────────
 FReply SMainMenuWidget::OnStartClicked()
 {
+    PlayButtonSound();
     NavigateTo(BuildLevelSelectPage());
     return FReply::Handled();
 }
 
 FReply SMainMenuWidget::OnTutorialClicked()
 {
+    PlayButtonSound();
     NavigateTo(BuildTutorialPage());
     return FReply::Handled();
 }
 
 FReply SMainMenuWidget::OnHighScoresClicked()
 {
+    PlayButtonSound();
     NavigateTo(BuildHighScoresPage());
     return FReply::Handled();
 }
 
 FReply SMainMenuWidget::OnAboutClicked()
 {
+    PlayButtonSound();
     NavigateTo(BuildAboutPage());
     return FReply::Handled();
 }
 
 FReply SMainMenuWidget::OnQuitClicked()
 {
-    if (GEngine)
+    PlayButtonSound();
+
+    FTimerHandle QuitTimer;
+    if (MyWorld)
     {
-        APlayerController* PC = GEngine->GetFirstLocalPlayerController(MyWorld);
-        if (PC)
-        {
-            PC->ConsoleCommand("quit");
-        }
+        MyWorld->GetTimerManager().SetTimer(QuitTimer, [this]()
+            {
+                if (GEngine)
+                {
+                    APlayerController* PC = GEngine->GetFirstLocalPlayerController(MyWorld);
+                    if (PC)
+                    {
+                        PC->ConsoleCommand("quit");
+                    }
+                }
+            }, 0.3f, false);
     }
+
     return FReply::Handled();
+}
+
+void SMainMenuWidget::PlayButtonSound()
+{
+    if (ButtonClickSound && MyWorld)
+    {
+        UGameplayStatics::PlaySound2D(MyWorld, ButtonClickSound);
+    }
 }

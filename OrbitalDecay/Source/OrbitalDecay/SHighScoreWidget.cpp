@@ -7,6 +7,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Kismet/GameplayStatics.h"
+#include "Sound/SoundWave.h"
 
 static const FLinearColor HS_Bg      = FLinearColor(0.02f, 0.03f, 0.05f, 1.f);
 static const FLinearColor HS_Panel    = FLinearColor(0.05f, 0.07f, 0.10f, 1.f);
@@ -23,6 +24,8 @@ static const FLinearColor HS_Header   = FLinearColor(0.30f, 0.40f, 0.50f, 1.f);
 
 void SHighScoreWidget::Construct(const FArguments& InArgs)
 {
+    MyWorld = InArgs._OwnerWorld;
+    ButtonClickSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/342200__christopherderp__videogame-menu-button-click.342200__christopherderp__videogame-menu-button-click"));
     OnBack = InArgs._OnBack;
 
     LevelListBox = SNew(SScrollBox);
@@ -237,6 +240,7 @@ void SHighScoreWidget::RefreshScores()
 
 FReply SHighScoreWidget::OnBackClicked()
 {
+    PlayButtonSound();
     OnBack.ExecuteIfBound();
     return FReply::Handled();
 }
@@ -260,6 +264,7 @@ void SHighScoreWidget::RebuildLevelList()
                 .VAlign(VAlign_Center)
                 .OnClicked_Lambda([this, i]() -> FReply
                 {
+                    PlayButtonSound();
                     SelectedLevel = i;
                     RebuildLevelList();
                     RefreshScores();
@@ -275,4 +280,10 @@ void SHighScoreWidget::RebuildLevelList()
             ]
         ];
     }
+}
+
+void SHighScoreWidget::PlayButtonSound()
+{
+    if (ButtonClickSound && MyWorld)
+        UGameplayStatics::PlaySound2D(MyWorld, ButtonClickSound);
 }

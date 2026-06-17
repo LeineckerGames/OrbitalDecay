@@ -146,8 +146,9 @@ void ALanderPawn::Tick(float DeltaTime)
                         }
                     }
 
+                    float LevelDrainMultiplier = FMath::Lerp(1.0f, 3.0f, Alpha);
                     float DrainRate = bIsBoosting ? FuelDrainBoost : FuelDrainIdle;
-                    Fuel -= DrainRate * DeltaTime;
+                    Fuel -= DrainRate * LevelDrainMultiplier * DeltaTime;
                     Fuel = FMath::Max(Fuel, 0.0f);
                 }
                 else

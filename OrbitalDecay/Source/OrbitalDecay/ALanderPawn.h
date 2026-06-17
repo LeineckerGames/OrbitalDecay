@@ -5,6 +5,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "ReplayRecorder.h"
 #include "MissionCharacter.h"
+#include "Components/AudioComponent.h"
 #include "ALanderPawn.generated.h"
 
 UCLASS()
@@ -100,6 +101,12 @@ public:
     FRotator CameraRotation = FRotator(-15.f, 0.f, 0.f);
 
     FRotator TargetRotation = FRotator::ZeroRotator;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    USoundBase* ThrustSound = nullptr;
+
+    UPROPERTY()
+    UAudioComponent* ThrustAudioComponent = nullptr;
 
     void RotateLeft();
     void RotateRight();

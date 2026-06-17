@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Sound/SoundWave.h"
 
 class SMainMenuWidget : public SCompoundWidget
 {
@@ -24,6 +25,9 @@ private:
     TSharedRef<SWidget> BuildHighScoresPage();
     TSharedRef<SWidget> BuildTutorialPage();
     TSharedRef<SWidget> BuildAboutPage();
+
+    USoundWave* ButtonClickSound = nullptr;
+    void PlayButtonSound();
 
     // Navigation
     void NavigateTo(TSharedRef<SWidget> NewPage);

@@ -4,6 +4,7 @@
 #include "OrbitalDecayGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "MyHUD.h"
+#include "Components/AudioComponent.h"
 
 ALanderPawn::ALanderPawn()
 {
@@ -34,6 +35,11 @@ ALanderPawn::ALanderPawn()
     ReplayCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("ReplayCamera"));
     ReplayCamera->SetupAttachment(ReplaySpringArm);
     ReplayCamera->SetActive(false);
+
+    ThrustAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("ThrustAudio"));
+    ThrustAudioComponent->SetupAttachment(RootComponent);
+    ThrustAudioComponent->bAutoActivate = false;
+    ThrustAudioComponent->SetVolumeMultiplier(0.3f);
 }
 
 void ALanderPawn::BeginPlay()
@@ -54,6 +60,13 @@ void ALanderPawn::BeginPlay()
             bGameStarted = true;
             if (GEngine)
                 GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("GO!"));
+
+            if (ThrustAudioComponent && ThrustSound)
+            {
+                ThrustAudioComponent->SetSound(ThrustSound);
+                ThrustAudioComponent->Play();
+            }
+
         }, MissionBriefingDuration, false);
 
     TArray<AActor*> FoundActors;
@@ -161,6 +174,22 @@ void ALanderPawn::Tick(float DeltaTime)
             }
         }
 
+        if (ThrustAudioComponent && ThrustAudioComponent->IsPlaying())
+        {
+            if (Fuel <= 0.0f || bHasLanded)
+            {
+                ThrustAudioComponent->SetVolumeMultiplier(0.0f);
+            }
+            else if (bIsBoosting)
+            {
+                ThrustAudioComponent->SetVolumeMultiplier(0.5f);
+            }
+            else
+            {
+                ThrustAudioComponent->SetVolumeMultiplier(0.1f);
+            }
+        }
+
         FVector Start = Camera->GetComponentLocation();
         FVector End = Start + FVector(0.f, 0.f, -100000.f);
         FHitResult HitResult;
@@ -241,6 +270,9 @@ void ALanderPawn::Tick(float DeltaTime)
                 {
                     if (GEngine)
                         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("CRASHED! Missed the landing pad!"));
+
+                    if (ThrustAudioComponent)
+                        ThrustAudioComponent->Stop();
 
                     FTimerHandle ReplayTimerHandle;
                     GetWorldTimerManager().SetTimer(ReplayTimerHandle, [this]()

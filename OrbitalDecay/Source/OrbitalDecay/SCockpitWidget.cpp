@@ -746,12 +746,12 @@ FReply SCockpitWidget::OnKeypadButtonClicked(FString Label)
         return FReply::Handled();
     }
 
-    if (!MyOwnerHUD.IsValid()) return FReply::Unhandled();
-
     if (!MyOwnerHUD->bQuestionActive)
     {
         return FReply::Handled();
     }
+
+    if (P) P->PlayKeyClickSound();
 
     AppendToInput(Label);
     return FReply::Handled();
@@ -1113,6 +1113,7 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
 
         if (!NumStr.IsEmpty())
         {
+            if (P) P->PlayKeyClickSound();
             AppendToInput(NumStr);
             return FReply::Handled();
         }

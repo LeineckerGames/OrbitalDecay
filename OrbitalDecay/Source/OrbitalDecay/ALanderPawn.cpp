@@ -40,6 +40,16 @@ ALanderPawn::ALanderPawn()
     ThrustAudioComponent->SetupAttachment(RootComponent);
     ThrustAudioComponent->bAutoActivate = false;
     ThrustAudioComponent->SetVolumeMultiplier(0.3f);
+
+    RotationAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("RotationAudio"));
+    RotationAudioComponent->SetupAttachment(RootComponent);
+    RotationAudioComponent->bAutoActivate = false;
+    RotationAudioComponent->SetVolumeMultiplier(0.5f);
+
+    KeyClickAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("KeyClickAudio"));
+    KeyClickAudioComponent->SetupAttachment(RootComponent);
+    KeyClickAudioComponent->bAutoActivate = false;
+    KeyClickAudioComponent->SetVolumeMultiplier(0.5f);
 }
 
 void ALanderPawn::BeginPlay()
@@ -290,6 +300,15 @@ void ALanderPawn::Tick(float DeltaTime)
         FRotator CurrentRotation = GetActorRotation();
         FRotator SmoothedRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, RotationInterpSpeed);
         SetActorRotation(SmoothedRotation);
+
+        if (RotationAudioComponent && RotationAudioComponent->IsPlaying())
+        {
+            float YawDiff = FMath::Abs(FRotator::NormalizeAxis(SmoothedRotation.Yaw - TargetRotation.Yaw));
+            if (YawDiff < 1.0f)
+            {
+                RotationAudioComponent->Stop();
+            }
+        }
     }
 }
 
@@ -363,9 +382,31 @@ void ALanderPawn::ToggleThrustMode()
 void ALanderPawn::RotateLeft()
 {
     TargetRotation.Yaw -= RotationStep;
+
+    if (RotationAudioComponent && RotationSound)
+    {
+        RotationAudioComponent->SetSound(RotationSound);
+        RotationAudioComponent->Play();
+    }
 }
 
 void ALanderPawn::RotateRight()
 {
     TargetRotation.Yaw += RotationStep;
+
+    if (RotationAudioComponent && RotationSound)
+    {
+        RotationAudioComponent->SetSound(RotationSound);
+        RotationAudioComponent->Play();
+    }
+}
+
+
+void ALanderPawn::PlayKeyClickSound()
+{
+    if (KeyClickAudioComponent && KeyClickSound)
+    {
+        KeyClickAudioComponent->SetSound(KeyClickSound);
+        KeyClickAudioComponent->Play();
+    }
 }

@@ -108,6 +108,18 @@ public:
     UPROPERTY()
     UAudioComponent* ThrustAudioComponent = nullptr;
 
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    USoundBase* RotationSound = nullptr;
+
+    UPROPERTY()
+    UAudioComponent* RotationAudioComponent = nullptr;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    USoundBase* KeyClickSound = nullptr;
+
+    UPROPERTY()
+    UAudioComponent* KeyClickAudioComponent = nullptr;
+
     void RotateLeft();
     void RotateRight();
     void ToggleThrustMode();
@@ -116,6 +128,7 @@ public:
     void StartCrashReplay();
     void DisablePlayerInput();
     void ResetPawn(); // Sprint 5 stub
+    void PlayKeyClickSound();
 
     bool bForwardThrustMode = false;
     bool bHasLanded = false;

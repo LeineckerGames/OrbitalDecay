@@ -50,6 +50,11 @@ ALanderPawn::ALanderPawn()
     KeyClickAudioComponent->SetupAttachment(RootComponent);
     KeyClickAudioComponent->bAutoActivate = false;
     KeyClickAudioComponent->SetVolumeMultiplier(0.5f);
+
+    SwitchAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("SwitchAudio"));
+    SwitchAudioComponent->SetupAttachment(RootComponent);
+    SwitchAudioComponent->bAutoActivate = false;
+    SwitchAudioComponent->SetVolumeMultiplier(0.5f);
 }
 
 void ALanderPawn::BeginPlay()
@@ -408,5 +413,14 @@ void ALanderPawn::PlayKeyClickSound()
     {
         KeyClickAudioComponent->SetSound(KeyClickSound);
         KeyClickAudioComponent->Play();
+    }
+}
+
+void ALanderPawn::PlaySwitchSound()
+{
+    if (SwitchAudioComponent && SwitchSound)
+    {
+        SwitchAudioComponent->SetSound(SwitchSound);
+        SwitchAudioComponent->Play();
     }
 }

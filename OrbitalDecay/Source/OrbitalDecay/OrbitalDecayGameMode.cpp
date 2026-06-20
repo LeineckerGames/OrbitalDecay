@@ -93,7 +93,7 @@ void AOrbitalDecayGameMode::TriggerLevelComplete()
 
     if (GlobalLevel >= 20)
     {
-        // All levels done — reset back to 1 for next playthrough
+        // All levels done ï¿½ reset back to 1 for next playthrough
         SaveGame->ResetToLevelOne();
         return;
     }

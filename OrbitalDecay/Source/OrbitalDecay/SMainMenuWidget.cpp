@@ -1,5 +1,4 @@
 #include "SMainMenuWidget.h"
-#include "SLevelSelectWidget.h"
 #include "SHighScoreWidget.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/SBoxPanel.h"
@@ -11,6 +10,7 @@
 #include "Misc/App.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundWave.h"
+#include "OrbitalSaveGame.h"
 
 // ─── Colors ───────────────────────────────────────────────────────
 static const FLinearColor MM_Bg         = FLinearColor(0.02f, 0.03f, 0.05f, 1.f);
@@ -40,6 +40,30 @@ static TSharedRef<SWidget> MakeMenuButton(
                 SNew(STextBlock)
                 .Text(FText::FromString(Label))
                 .Font(FCoreStyle::GetDefaultFontStyle("Bold", 20))
+                .ColorAndOpacity(MM_TextColor)
+                .Justification(ETextJustify::Center)
+            ]
+        ];
+}
+
+// ─── Helper: large green Play button ──────────────────────────────
+static const FLinearColor MM_PlayBg = FLinearColor(0.08f, 0.32f, 0.10f, 1.f);
+
+static TSharedRef<SWidget> MakePlayButton(FOnClicked OnClicked)
+{
+    return SNew(SBox)
+        .WidthOverride(320.f)
+        .HeightOverride(72.f)
+        [
+            SNew(SButton)
+            .ButtonColorAndOpacity(MM_PlayBg)
+            .HAlign(HAlign_Center)
+            .VAlign(VAlign_Center)
+            .OnClicked(OnClicked)
+            [
+                SNew(STextBlock)
+                .Text(FText::FromString(TEXT("PLAY")))
+                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 28))
                 .ColorAndOpacity(MM_TextColor)
                 .Justification(ETextJustify::Center)
             ]
@@ -139,9 +163,9 @@ TSharedRef<SWidget> SMainMenuWidget::BuildHomePage()
         [
             SNew(SVerticalBox)
 
-            + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8)
+            + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8, 0, 16)
             [
-                MakeMenuButton(TEXT("START"),
+                MakePlayButton(
                     FOnClicked::CreateSP(this, &SMainMenuWidget::OnStartClicked))
             ]
 
@@ -171,16 +195,7 @@ TSharedRef<SWidget> SMainMenuWidget::BuildHomePage()
         ];
 }
 
-// ─── Level Select Page ────────────────────────────────────────────
-TSharedRef<SWidget> SMainMenuWidget::BuildLevelSelectPage()
-{
-    return SNew(SLevelSelectWidget)
-        .OwnerWorld(MyWorld)
-        .OnBack_Lambda([this]()
-        {
-            NavigateTo(BuildHomePage());
-        });
-}
+
 
 // ─── High Scores Page ────────────────────────────────────────────
 TSharedRef<SWidget> SMainMenuWidget::BuildHighScoresPage()
@@ -267,7 +282,32 @@ TSharedRef<SWidget> SMainMenuWidget::BuildAboutPage()
 FReply SMainMenuWidget::OnStartClicked()
 {
     PlayButtonSound();
-    NavigateTo(BuildLevelSelectPage());
+
+    // Always start a fresh playthrough at level 1 — protects
+    // against stale progress if the player exits without using
+    // Main Menu (Alt+F4, editor stop, crash, etc.)
+    UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
+        UGameplayStatics::LoadGameFromSlot(
+            UOrbitalSaveGame::SaveSlotName, 0));
+    if (!SaveGame)
+        SaveGame = Cast<UOrbitalSaveGame>(
+            UGameplayStatics::CreateSaveGameObject(
+                UOrbitalSaveGame::StaticClass()));
+
+    if (SaveGame)
+    {
+        SaveGame->SaveCurrentLevel(1);
+        UGameplayStatics::SaveGameToSlot(
+            SaveGame, UOrbitalSaveGame::SaveSlotName, 0);
+    }
+
+    if (MyWorld)
+    {
+        // "test" is the current gameplay level while LevelCreation
+        // is being built — swap the FName here once that level exists
+        UGameplayStatics::OpenLevel(MyWorld, FName("test"));
+    }
+
     return FReply::Handled();
 }
 

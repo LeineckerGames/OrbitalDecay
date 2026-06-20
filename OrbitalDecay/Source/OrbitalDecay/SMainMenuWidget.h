@@ -21,7 +21,6 @@ private:
 
     // Page builders
     TSharedRef<SWidget> BuildHomePage();
-    TSharedRef<SWidget> BuildLevelSelectPage();
     TSharedRef<SWidget> BuildHighScoresPage();
     TSharedRef<SWidget> BuildTutorialPage();
     TSharedRef<SWidget> BuildAboutPage();

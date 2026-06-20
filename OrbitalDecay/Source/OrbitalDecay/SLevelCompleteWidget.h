@@ -32,6 +32,5 @@ private:
 
     FString FormatTime(float Seconds) const;
     FReply  OnSaveScoreClicked();
-    FReply  OnNextLevelClicked();
-    FReply  OnMainMenuClicked();
+    FReply  OnNextClicked();
 };

@@ -10,6 +10,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "OrbitalSaveGame.h"
 #include "OrbitalDecayGameMode.h"
+#include "SMissionCompletedWidget.h"
 
 static const FLinearColor LC_Bg       = FLinearColor(0.02f, 0.03f, 0.05f, 0.93f);
 static const FLinearColor LC_Panel    = FLinearColor(0.05f, 0.08f, 0.06f, 1.f);
@@ -251,59 +252,25 @@ void SLevelCompleteWidget::Construct(const FArguments& InArgs)
                         [ SNew(SSpacer) ]
                     ]
 
-                    // Navigation buttons
+                    // Navigation — single NEXT button, full width.
+                    // Label and destination both depend on whether this is the final level.
                     + SVerticalBox::Slot()
                     .AutoHeight()
                     [
-                        SNew(SHorizontalBox)
-
-                        // Next Level (hidden on level 20)
-                        + SHorizontalBox::Slot()
-                        .FillWidth(1.f)
-                        .Padding(0, 0, 4, 0)
+                        SNew(SBox)
+                        .HeightOverride(48.f)
                         [
-                            SNew(SBox)
-                            .HeightOverride(48.f)
-                            .Visibility(CurrentLevel >= 20 ?
-                                EVisibility::Collapsed : EVisibility::Visible)
+                            SNew(SButton)
+                            .ButtonColorAndOpacity(LC_BtnGreen)
+                            .HAlign(HAlign_Center)
+                            .VAlign(VAlign_Center)
+                            .OnClicked(this, &SLevelCompleteWidget::OnNextClicked)
                             [
-                                SNew(SButton)
-                                .ButtonColorAndOpacity(LC_BtnGreen)
-                                .HAlign(HAlign_Center)
-                                .VAlign(VAlign_Center)
-                                .OnClicked(this,
-                                    &SLevelCompleteWidget::OnNextLevelClicked)
-                                [
-                                    SNew(STextBlock)
-                                    .Text(FText::FromString(TEXT("NEXT LEVEL")))
-                                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 15))
-                                    .ColorAndOpacity(LC_Text)
-                                ]
-                            ]
-                        ]
-
-                        
-
-                        // Main Menu
-                        + SHorizontalBox::Slot()
-                        .FillWidth(1.f)
-                        .Padding(4, 0, 0, 0)
-                        [
-                            SNew(SBox)
-                            .HeightOverride(48.f)
-                            [
-                                SNew(SButton)
-                                .ButtonColorAndOpacity(LC_BtnRed)
-                                .HAlign(HAlign_Center)
-                                .VAlign(VAlign_Center)
-                                .OnClicked(this,
-                                    &SLevelCompleteWidget::OnMainMenuClicked)
-                                [
-                                    SNew(STextBlock)
-                                    .Text(FText::FromString(TEXT("MAIN MENU")))
-                                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 15))
-                                    .ColorAndOpacity(LC_Text)
-                                ]
+                                SNew(STextBlock)
+                                .Text(FText::FromString(
+                                    CurrentLevel >= 20 ? TEXT("NEXT") : TEXT("NEXT LEVEL")))
+                                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 15))
+                                .ColorAndOpacity(LC_Text)
                             ]
                         ]
                     ]
@@ -372,15 +339,39 @@ FReply SLevelCompleteWidget::OnSaveScoreClicked()
     return FReply::Handled();
 }
 
-FReply SLevelCompleteWidget::OnNextLevelClicked()
+FReply SLevelCompleteWidget::OnNextClicked()
 {
     if (GEngine && GEngine->GameViewport)
         GEngine->GameViewport->RemoveAllViewportWidgets();
 
-    if (MyWorld)
+    if (!MyWorld) return FReply::Handled();
+
+    if (CurrentLevel >= 20)
     {
-        // Advance to the next level NOW — this is the only
-        // place GlobalLevel should ever be incremented+saved
+        // Final level — go to the Mission Completed screen instead
+        // of advancing GlobalLevel any further or reloading.
+        TSharedPtr<SMissionCompletedWidget> MissionWidget =
+            SNew(SMissionCompletedWidget).OwnerWorld(MyWorld);
+
+        if (GEngine && GEngine->GameViewport)
+        {
+            GEngine->GameViewport->AddViewportWidgetContent(
+                MissionWidget.ToSharedRef(), 10);
+        }
+
+        APlayerController* PC = MyWorld->GetFirstPlayerController();
+        if (PC)
+        {
+            PC->bShowMouseCursor = true;
+            FInputModeUIOnly InputMode;
+            PC->SetInputMode(InputMode);
+        }
+    }
+    else
+    {
+        // Normal case — advance to the next level.
+        // This is the only place GlobalLevel should ever be
+        // incremented+saved.
         AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
             MyWorld->GetAuthGameMode());
         if (GM)
@@ -391,18 +382,8 @@ FReply SLevelCompleteWidget::OnNextLevelClicked()
         UGameplayStatics::OpenLevel(MyWorld,
             FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
     }
-    return FReply::Handled();
-}
-
-
-
-FReply SLevelCompleteWidget::OnMainMenuClicked()
-{
-    if (GEngine && GEngine->GameViewport)
-        GEngine->GameViewport->RemoveAllViewportWidgets();
-
-    if (MyWorld)
-        UGameplayStatics::OpenLevel(MyWorld, FName("MainMenu"));
 
     return FReply::Handled();
 }
+
+

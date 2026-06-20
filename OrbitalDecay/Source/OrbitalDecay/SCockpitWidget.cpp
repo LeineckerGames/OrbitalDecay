@@ -507,6 +507,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildThrustSwitch()
                     ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
                     if (P)
                     {
+                        P->PlaySwitchSound();
                         P->ToggleThrustMode();
                         ResultText = FText::FromString(P->bForwardThrustMode ?
                             TEXT("FORWARD THRUST") : TEXT("VERTICAL THRUST"));
@@ -747,16 +748,17 @@ FReply SCockpitWidget::OnKeypadButtonClicked(FString Label)
 
     if (Label == "ENTER")
     {
+        if (P) P->PlayKeyClickSound();
         CheckAnswer();
         return FReply::Handled();
     }
-
-    if (!MyOwnerHUD.IsValid()) return FReply::Unhandled();
 
     if (!MyOwnerHUD->bQuestionActive)
     {
         return FReply::Handled();
     }
+
+    if (P) P->PlayKeyClickSound();
 
     AppendToInput(Label);
     return FReply::Handled();
@@ -1012,6 +1014,7 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
     {
         if (P)
         {
+            P->PlaySwitchSound();
             P->ToggleThrustMode();
             ResultText = FText::FromString(P->bForwardThrustMode ?
                 TEXT("FORWARD THRUST") : TEXT("VERTICAL THRUST"));
@@ -1063,6 +1066,8 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
 
         if (!Type.IsEmpty())
         {
+            if (P) P->PlayKeyClickSound();
+
             AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
                 MyOwnerHUD->GetWorld()->GetAuthGameMode());
             int32 Level = GM ? GM->GlobalLevel : 1;
@@ -1102,6 +1107,7 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
         else if (InKeyEvent.GetKey() == EKeys::Nine || InKeyEvent.GetKey() == EKeys::NumPadNine)  NumStr = "9";
         else if (InKeyEvent.GetKey() == EKeys::Enter)
         {
+            if (P) P->PlayKeyClickSound();
             CheckAnswer();
             return FReply::Handled();
         }
@@ -1118,6 +1124,7 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
 
         if (!NumStr.IsEmpty())
         {
+            if (P) P->PlayKeyClickSound();
             AppendToInput(NumStr);
             return FReply::Handled();
         }

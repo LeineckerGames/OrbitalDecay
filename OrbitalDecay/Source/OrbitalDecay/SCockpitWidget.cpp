@@ -162,7 +162,12 @@ int32 SMinimapWidget::OnPaint(
         const float DistFromCtr = FVector2D::Distance(PadScreen, Ctr);
         if (DistFromCtr > R - PadRadius)
         {
-            // Edge indicator dot
+            // Edge indicator dot — color must reflect visited state too,
+            // otherwise a green (visited) pad turns red once it scrolls
+            // off the edge of the radar
+            const bool bVisitedEdge = Pawn->VisitedPads.Contains(Actor);
+            const FLinearColor EdgeColor = bVisitedEdge ? C_PadVisited : C_PadNormal;
+
             FVector2D Dir     = (PadScreen - Ctr).GetSafeNormal();
             FVector2D EdgePos = Ctr + Dir * (R - 5.f);
             FSlateDrawElement::MakeBox(
@@ -170,7 +175,7 @@ int32 SMinimapWidget::OnPaint(
                 AllottedGeometry.ToPaintGeometry(
                     FVector2D(5.f, 5.f),
                     FSlateLayoutTransform(EdgePos - FVector2D(2.5f, 2.5f))),
-                White, ESlateDrawEffect::None, C_PadNormal);
+                White, ESlateDrawEffect::None, EdgeColor);
             continue;
         }
 

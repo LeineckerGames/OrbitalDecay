@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "ProceduralMeshComponent.h"
 #include "DiaMONDSQUARE.generated.h"
+#include "Components/BoxComponent.h"  
 
 class UProceduralMeshComponent;
 class UMaterialInterface;
@@ -30,6 +31,8 @@ struct FObjectPlacementConfig
 
     UPROPERTY(EditAnywhere)
     FVector MeshScale = FVector(1.0f, 1.0f, 1.0f);
+
+    
 };
 
 UCLASS()
@@ -61,6 +64,15 @@ public:
     UPROPERTY(EditAnywhere)               
     TArray<FObjectPlacementConfig> ObjectLayers;
 
+    UPROPERTY(EditAnywhere, Category = "Border")
+    float BorderMargin = 800.0f;       // distance inward from the mesh edge to the playable boundary
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    float BorderWallHeight = 5000.0f;
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    float BorderWallThickness = 200.0f;
+
 
 protected:
     virtual void BeginPlay() override;
@@ -84,4 +96,10 @@ private:
     void CreateVertices();
     void CreateTriangles();
     void PlaceObjects(const FObjectPlacementConfig& Config); 
+    TArray<UBoxComponent*> BorderWalls;
+    void CreateBorderWalls();
+    void ClearBorderWalls();
+    bool IsWithinPlayableBounds(const FVector& LocalVertexPos) const;
+
+    void ApplyLevelSettings(int32 Level);
 };

@@ -126,6 +126,30 @@ public:
     UPROPERTY()
     UAudioComponent* SwitchAudioComponent = nullptr;
 
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    USoundBase* LowFuelSound = nullptr;
+
+    UPROPERTY()
+    UAudioComponent* LowFuelAudioComponent = nullptr;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    USoundBase* CorrectAnswerSound = nullptr;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    USoundBase* WrongAnswerSound = nullptr;
+
+    UPROPERTY()
+    UAudioComponent* CorrectAnswerAudioComponent = nullptr;
+
+    UPROPERTY()
+    UAudioComponent* WrongAnswerAudioComponent = nullptr;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    USoundBase* FuelSound = nullptr;
+
+    UPROPERTY()
+    UAudioComponent* FuelAudioComponent = nullptr;
+
     void RotateLeft();
     void RotateRight();
     void ToggleThrustMode();
@@ -136,6 +160,9 @@ public:
     void ResetPawn(); // Sprint 5 stub
     void PlayKeyClickSound();
     void PlaySwitchSound();
+    void PlayFuelSound();
+    void PlayCorrectAnswerSound();
+    void PlayWrongAnswerSound();
 
     bool bForwardThrustMode = false;
     bool bHasLanded = false;

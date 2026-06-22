@@ -55,6 +55,23 @@ ALanderPawn::ALanderPawn()
     SwitchAudioComponent->SetupAttachment(RootComponent);
     SwitchAudioComponent->bAutoActivate = false;
     SwitchAudioComponent->SetVolumeMultiplier(0.5f);
+
+    LowFuelAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("LowFuelAudio"));
+    LowFuelAudioComponent->SetupAttachment(RootComponent);
+    LowFuelAudioComponent->bAutoActivate = false;
+    LowFuelAudioComponent->SetVolumeMultiplier(0.1f);
+
+    CorrectAnswerAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("CorrectAnswerAudio"));
+    CorrectAnswerAudioComponent->SetupAttachment(RootComponent);
+    CorrectAnswerAudioComponent->bAutoActivate = false;
+
+    WrongAnswerAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("WrongAnswerAudio"));
+    WrongAnswerAudioComponent->SetupAttachment(RootComponent);
+    WrongAnswerAudioComponent->bAutoActivate = false;
+
+    FuelAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("FuelAudio"));
+    FuelAudioComponent->SetupAttachment(RootComponent);
+    FuelAudioComponent->bAutoActivate = false;
 }
 
 void ALanderPawn::BeginPlay()
@@ -205,6 +222,21 @@ void ALanderPawn::Tick(float DeltaTime)
             }
         }
 
+        if (LowFuelAudioComponent && LowFuelSound)
+        {
+            float FuelPct = Fuel / MaxFuel;
+            if (FuelPct <= 0.20f && !LowFuelAudioComponent->IsPlaying() && bGameStarted && !bHasLanded)
+            {
+                LowFuelAudioComponent->SetSound(LowFuelSound);
+                LowFuelAudioComponent->SetVolumeMultiplier(0.1f);
+                LowFuelAudioComponent->Play();
+            }
+            else if (FuelPct > 0.20f && LowFuelAudioComponent->IsPlaying())
+            {
+                LowFuelAudioComponent->Stop();
+            }
+        }
+
         FVector Start = Camera->GetComponentLocation();
         FVector End = Start + FVector(0.f, 0.f, -100000.f);
         FHitResult HitResult;
@@ -249,6 +281,9 @@ void ALanderPawn::Tick(float DeltaTime)
                         if (PadsLanded >= 3)
                         {
                             bLevelComplete = true;
+
+                            if (LowFuelAudioComponent)
+                                LowFuelAudioComponent->Stop();
 
                             // Read the level just played — do NOT increment here.
                             // Incrementing only happens when the player clicks Next Level.
@@ -331,6 +366,12 @@ void ALanderPawn::StartCrashReplay()
     }
 
     Mesh->SetVisibility(true);
+
+    // Stop audio on crash
+    if (ThrustAudioComponent)
+        ThrustAudioComponent->Stop();
+    if (LowFuelAudioComponent)
+        LowFuelAudioComponent->Stop();
 
     if (Camera) Camera->SetActive(false);
     if (ReplayCamera)
@@ -419,5 +460,32 @@ void ALanderPawn::PlaySwitchSound()
     {
         SwitchAudioComponent->SetSound(SwitchSound);
         SwitchAudioComponent->Play();
+    }
+}
+
+void ALanderPawn::PlayCorrectAnswerSound()
+{
+    if (CorrectAnswerAudioComponent && CorrectAnswerSound)
+    {
+        CorrectAnswerAudioComponent->SetSound(CorrectAnswerSound);
+        CorrectAnswerAudioComponent->Play();
+    }
+}
+
+void ALanderPawn::PlayWrongAnswerSound()
+{
+    if (WrongAnswerAudioComponent && WrongAnswerSound)
+    {
+        WrongAnswerAudioComponent->SetSound(WrongAnswerSound);
+        WrongAnswerAudioComponent->Play();
+    }
+}
+
+void ALanderPawn::PlayFuelSound()
+{
+    if (FuelAudioComponent && FuelSound)
+    {
+        FuelAudioComponent->SetSound(FuelSound);
+        FuelAudioComponent->Play();
     }
 }

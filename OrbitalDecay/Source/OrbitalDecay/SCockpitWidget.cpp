@@ -1168,9 +1168,12 @@ void SCockpitWidget::CheckAnswer()
         ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
         if (P)
         {
+            P->PlayCorrectAnswerSound();
+
             if (MyOwnerHUD->QuestionType == "d")
             {
                 P->AddFuel(MyOwnerHUD->FuelRewardAmount);
+                P->PlayFuelSound();
                 ResultText = FText::FromString(
                     FString::Printf(TEXT("CORRECT! +%.0f FUEL"), MyOwnerHUD->FuelRewardAmount));
             }
@@ -1211,6 +1214,9 @@ void SCockpitWidget::CheckAnswer()
             MyOwnerHUD->TotalQuestionsAnswered++;
         }
         ResultColor = FSlateColor(C_FuelLow);
+
+        ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());  
+        if (P) P->PlayWrongAnswerSound();
     }
 
     AnswerInputBox->SetText(FText::GetEmpty());

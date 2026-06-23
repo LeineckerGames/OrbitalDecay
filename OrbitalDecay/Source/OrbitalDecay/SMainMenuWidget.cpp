@@ -211,32 +211,55 @@ TSharedRef<SWidget> SMainMenuWidget::BuildHighScoresPage()
 // ─── Tutorial Page ────────────────────────────────────────────────
 TSharedRef<SWidget> SMainMenuWidget::BuildTutorialPage()
 {
-    return SNew(SVerticalBox)
+    // Load your tutorial image texture
+    UTexture2D* TutorialTex = LoadObject<UTexture2D>(nullptr, 
+        TEXT("/Game/images/Slide1"));  // adjust path to where you save it
 
-        + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 40)
+    FSlateBrush* TutorialBrush = new FSlateBrush();
+    if (TutorialTex)
+    {
+        TutorialBrush->SetResourceObject(TutorialTex);
+        TutorialBrush->ImageSize = FVector2D(1920.f, 1080.f);
+        TutorialBrush->DrawAs = ESlateBrushDrawType::Image;
+    }
+
+    return SNew(SOverlay)
+
+        // Full screen image
+        + SOverlay::Slot()
+        .HAlign(HAlign_Fill)
+        .VAlign(VAlign_Fill)
         [
-            SNew(STextBlock)
-            .Text(FText::FromString(TEXT("TUTORIAL")))
-            .Font(FCoreStyle::GetDefaultFontStyle("Bold", 42))
-            .ColorAndOpacity(MM_TitleColor)
+            SNew(SImage)
+            .Image(TutorialBrush)
         ]
 
-        + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 20)
+        // Back button overlaid in bottom left
+        + SOverlay::Slot()
+        .HAlign(HAlign_Left)
+        .VAlign(VAlign_Bottom)
+        .Padding(30.f)
         [
-            SNew(STextBlock)
-            .Text(FText::FromString(TEXT("Tutorial level coming soon.")))
-            .Font(FCoreStyle::GetDefaultFontStyle("Regular", 20))
-            .ColorAndOpacity(MM_TextColor)
-        ]
-
-        + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 40)
-        [
-            MakeMenuButton(TEXT("BACK"),
-                FOnClicked::CreateLambda([this]() -> FReply
+            SNew(SBox)
+            .WidthOverride(120.f)
+            .HeightOverride(44.f)
+            [
+                SNew(SButton)
+                .ButtonColorAndOpacity(MM_BtnBg)
+                .HAlign(HAlign_Center)
+                .VAlign(VAlign_Center)
+                .OnClicked(FOnClicked::CreateLambda([this]() -> FReply
                 {
                     NavigateTo(BuildHomePage());
                     return FReply::Handled();
                 }))
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("← BACK")))
+                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
+                    .ColorAndOpacity(MM_TextColor)
+                ]
+            ]
         ];
 }
 

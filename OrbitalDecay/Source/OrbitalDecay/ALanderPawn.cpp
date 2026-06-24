@@ -489,3 +489,24 @@ void ALanderPawn::PlayFuelSound()
         FuelAudioComponent->Play();
     }
 }
+
+void ALanderPawn::TriggerCrash()
+{
+    if (bHasLanded || bLevelComplete) return; // already crashed/landed/finished — ignore repeat hits
+
+    bHasLanded = true;        // halts the movement/gravity block in Tick(), same as a normal crash
+    CurrentVelocity = FVector::ZeroVector;
+    bIsBoosting = false;
+
+    if (GEngine)
+        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("CRASHED! Hit the world border!"));
+
+    if (ThrustAudioComponent)
+        ThrustAudioComponent->Stop();
+
+    FTimerHandle ReplayTimerHandle;
+    GetWorldTimerManager().SetTimer(ReplayTimerHandle, [this]()
+        {
+            StartCrashReplay();
+        }, 1.5f, false);
+}

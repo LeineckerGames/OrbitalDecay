@@ -88,6 +88,9 @@ public:
     UPROPERTY(EditAnywhere, Category = "Border")
     UMaterialInterface* CeilingMaterial = nullptr;
 
+    UPROPERTY(EditAnywhere, Category = "Border")
+    bool bBorderTriggersCrash = false;   // toggle on/off, checked live at hit time
+
 protected:
     virtual void BeginPlay() override;
 
@@ -115,6 +118,10 @@ private:
     void ClearBorderWalls();
     bool IsWithinPlayableBounds(const FVector& LocalVertexPos) const;
     void CreateCeiling();
+    UFUNCTION()
+    void OnBorderHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+        UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
 
     void ApplyLevelSettings(int32 Level);
 };

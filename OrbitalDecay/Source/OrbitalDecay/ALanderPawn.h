@@ -156,6 +156,7 @@ public:
     void ActivateBoost();
     void AddFuel(float Amount);
     void StartCrashReplay();
+    void TriggerCrash();
     void DisablePlayerInput();
     void ResetPawn(); // Sprint 5 stub
     void PlayKeyClickSound();

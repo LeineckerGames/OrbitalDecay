@@ -5,6 +5,7 @@
 #include "ProceduralMeshComponent.h"
 #include "KismetProceduralMeshLibrary.h"
 #include "OrbitalDecayGameMode.h"
+#include "ALanderPawn.h"
 
 
 ADiaMONDSQUARE::ADiaMONDSQUARE()
@@ -155,6 +156,7 @@ void ADiaMONDSQUARE::CreateBorderWalls()
 			Wall->SetRelativeScale3D(BoxExtent / 50.0f);
 			Wall->SetCollisionProfileName(TEXT("BlockAll"));
 			Wall->SetCastShadow(false); // optional — avoid huge shadow-casting walls
+			Wall->OnComponentHit.AddDynamic(this, &ADiaMONDSQUARE::OnBorderHit);
 
 			BorderWalls.Add(Wall);
 		};
@@ -197,8 +199,21 @@ void ADiaMONDSQUARE::CreateCeiling()
 	Ceiling->SetRelativeScale3D(BoxExtent / 50.0f);
 	Ceiling->SetCollisionProfileName(TEXT("BlockAll"));
 	Ceiling->SetCastShadow(false);
+	Ceiling->OnComponentHit.AddDynamic(this, &ADiaMONDSQUARE::OnBorderHit);
 
 	BorderWalls.Add(Ceiling);
+}
+
+void ADiaMONDSQUARE::OnBorderHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	if (!bBorderTriggersCrash) return;
+
+	ALanderPawn* Lander = Cast<ALanderPawn>(OtherActor);
+	if (Lander)
+	{
+		Lander->TriggerCrash();
+	}
 }
 
 void ADiaMONDSQUARE::ApplyLevelSettings(int32 Level)

@@ -328,7 +328,11 @@ FReply SMainMenuWidget::OnStartClicked()
     {
         // "test" is the current gameplay level while LevelCreation
         // is being built — swap the FName here once that level exists
-        UGameplayStatics::OpenLevel(MyWorld, FName("test"));
+        FTimerHandle LoadLevelTimer;
+        MyWorld->GetTimerManager().SetTimer(LoadLevelTimer, [this]()
+            {
+                UGameplayStatics::OpenLevel(MyWorld, FName("test"));
+            }, 0.3f, false);
     }
 
     return FReply::Handled();

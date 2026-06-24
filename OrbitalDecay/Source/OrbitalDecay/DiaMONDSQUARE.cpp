@@ -16,15 +16,38 @@ ADiaMONDSQUARE::ADiaMONDSQUARE()
 
 }
 
-void ADiaMONDSQUARE::BeginPlay()
+void ADiaMONDSQUARE::OnConstruction(const FTransform& Transform)
 {
-	Super::BeginPlay();
+	Super::OnConstruction(Transform);
 
-	FMath::RandInit(FDateTime::Now().GetTicks());
-	RandomOffset = FMath::FRand() * 10000.0f; // store to member, don't calc Z here
+	// Build the mesh in the editor so you can see it without pressing Play.
+	// Uses Seed for a stable, reproducible shape. Objects are NOT spawned here.
+	RandomOffset = Seed * 137.5f; // deterministic offset from seed
 
 	Vertices.Reset();
-	
+	Triangles.Reset();
+	UV0.Reset();
+
+	CreateVertices();
+	CreateTriangles();
+
+	ProceduralMesh->ClearAllMeshSections();
+	UKismetProceduralMeshLibrary::CalculateTangentsForMesh(Vertices, Triangles, UV0, Normals, Tangents);
+	ProceduralMesh->CreateMeshSection(0, Vertices, Triangles, Normals, UV0, TArray<FColor>(), Tangents, true);
+	ProceduralMesh->SetMaterial(0, Material);
+}
+
+void ADiaMONDSQUARE::BeginPlay()
+{
+	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE::BeginPlay START"));
+
+	Super::BeginPlay();
+
+	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: randomising seed"));
+	FMath::RandInit(FDateTime::Now().GetTicks());
+	RandomOffset = FMath::FRand() * 10000.0f;
+
+	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: clearing old data"));
 	Vertices.Reset();
 	Triangles.Reset();
 	UV0.Reset();
@@ -41,6 +64,8 @@ void ADiaMONDSQUARE::BeginPlay()
 	}
 	SpawnedActors.Reset();
 
+	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: building mesh"));
+	ProceduralMesh->ClearAllMeshSections();
 	CreateVertices();
 	CreateTriangles();
 
@@ -48,11 +73,20 @@ void ADiaMONDSQUARE::BeginPlay()
 	ProceduralMesh->CreateMeshSection(0, Vertices, Triangles, Normals, UV0, TArray<FColor>(), Tangents, true);
 	ProceduralMesh->SetMaterial(0, Material);
 
-	for (const FObjectPlacementConfig& Config : ObjectLayers)
+	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: placing objects (%d layers)"), ObjectLayers.Num());
+	for (int32 i = 0; i < ObjectLayers.Num(); ++i)
 	{
+		const FObjectPlacementConfig& Config = ObjectLayers[i];
+		UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: PlaceObjects layer %d — ActorClass=%s Mesh=%s Count=%d"),
+			i,
+			Config.ActorClass ? *Config.ActorClass->GetName() : TEXT("null"),
+			Config.Mesh       ? *Config.Mesh->GetName()       : TEXT("null"),
+			Config.Count);
 		PlaceObjects(Config);
+		UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: layer %d done"), i);
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE::BeginPlay DONE"));
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("BeginPlay ran"));
 }
 
@@ -65,12 +99,43 @@ void ADiaMONDSQUARE::Tick(float DeltaTime)
 
 void ADiaMONDSQUARE::CreateVertices()
 {
+	// Center the mesh around the actor's origin so it doesn't spawn offset to one corner.
+	float HalfX = (XSize * Scale) * 0.5f;
+	float HalfY = (YSize * Scale) * 0.5f;
+
 	for (int X = 0; X <= XSize; ++X)
 	{
 		for (int Y = 0; Y <= YSize; ++Y)
 		{
+			float LocalX = X * Scale - HalfX;
+			float LocalY = Y * Scale - HalfY;
+
 			float Z = FMath::PerlinNoise2D(FVector2D(X * NoiseScale + RandomOffset, Y * NoiseScale + RandomOffset)) * ZMultiplier;
-			Vertices.Add(FVector(X * Scale, Y * Scale, Z));
+
+			// Spherical curvature: terrain drops away toward the horizon like a planet surface.
+			if (bEnablePlanetCurvature && PlanetRadius > 0.0f)
+			{
+				// Use square-max distance (Chebyshev) so the flat playable zone is square,
+				// not circular. NormX/Y are 0 at centre, 1 at the mesh edge midpoint.
+				float NormX      = (HalfX > 0.0f) ? FMath::Abs(LocalX) / HalfX : 0.0f;
+				float NormY      = (HalfY > 0.0f) ? FMath::Abs(LocalY) / HalfY : 0.0f;
+				float SquareDist = FMath::Max(NormX, NormY); // 0 = centre, 1 = edge
+
+				// Smoothstep from the falloff threshold to the edge.
+				// Inside the threshold = 0 (flat); at the edge = 1 (full curvature).
+				float T              = FMath::Clamp((SquareDist - CurvatureEdgeFalloff) / (1.0f - CurvatureEdgeFalloff), 0.0f, 1.0f);
+				float CurvatureBlend = T * T * (3.0f - 2.0f * T);
+
+				float DistSq  = LocalX * LocalX + LocalY * LocalY;
+				float RSq     = PlanetRadius * PlanetRadius;
+				float CurveDrop = (DistSq < RSq)
+					? PlanetRadius - FMath::Sqrt(RSq - DistSq)
+					: PlanetRadius;
+
+				Z -= CurveDrop * CurvatureBlend;
+			}
+
+			Vertices.Add(FVector(LocalX, LocalY, Z));
 			UV0.Add(FVector2D(X * UVScale, Y * UVScale));
 		}
 	}
@@ -99,7 +164,18 @@ void ADiaMONDSQUARE::CreateTriangles()
 
 void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
 {
-    if ((!Config.Mesh && !Config.ActorClass) || Vertices.IsEmpty()) return;
+    // Guard: need a world, valid vertices, and at least one thing to place.
+    if (!GetWorld() || Vertices.IsEmpty()) return;
+    if (!Config.Mesh && !Config.ActorClass) return;
+
+    // Guard: ActorClass must be a real AActor subclass, not a stale/null CDO reference.
+    // A bad class here causes a fatal CastChecked failure inside SpawnActor.
+    if (Config.ActorClass && !Config.ActorClass->IsChildOf(AActor::StaticClass()))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("PlaceObjects: ActorClass '%s' is not an AActor subclass — skipping."),
+            *Config.ActorClass->GetName());
+        return;
+    }
 
     TArray<FVector> PlacedPositions;
 
@@ -117,6 +193,13 @@ void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
     {
         if (Placed >= Config.Count) break;
 
+        // Reject vertices outside the spawn radius (local X/Y, ignoring terrain height).
+        if (Config.MaxSpawnRadius > 0.0f)
+        {
+            float Dist2D = FMath::Sqrt(Vertices[Idx].X * Vertices[Idx].X + Vertices[Idx].Y * Vertices[Idx].Y);
+            if (Dist2D > Config.MaxSpawnRadius) continue;
+        }
+
         FVector WorldPos = GetActorTransform().TransformPosition(Vertices[Idx]);
 
         bool bTooClose = false;
@@ -132,19 +215,18 @@ void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
 
         FVector SpawnLocation = WorldPos + FVector(0.0f, 0.0f, Config.ZOffset);
 
-        // Actor path takes priority � cleaner, scale is reliable
+        // Actor path takes priority -- cleaner, scale is reliable.
+        // Use the non-templated SpawnActor to avoid the internal CastChecked<AActor>
+        // that the templated version adds; a stale ActorClass reference crashes there.
         if (Config.ActorClass)
         {
             FActorSpawnParameters SpawnParams;
             SpawnParams.Owner = this;
             FTransform SpawnTransform(FRotator::ZeroRotator, SpawnLocation, Config.MeshScale);
-            AActor* NewActor = GetWorld()->SpawnActor<AActor>(
-                Config.ActorClass,
-                SpawnTransform,
-                SpawnParams
-            );
+            AActor* NewActor = GetWorld()->SpawnActor(Config.ActorClass, &SpawnTransform, SpawnParams);
             if (NewActor)
             {
+                NewActor->SetActorScale3D(Config.MeshScale);
                 SpawnedActors.Add(NewActor);
             }
         }

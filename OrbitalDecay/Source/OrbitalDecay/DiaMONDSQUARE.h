@@ -4,7 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "ProceduralMeshComponent.h"
 #include "DiaMONDSQUARE.generated.h"
-#include "Components/BoxComponent.h"  
+  
 
 class UProceduralMeshComponent;
 class UMaterialInterface;
@@ -32,7 +32,7 @@ struct FObjectPlacementConfig
     UPROPERTY(EditAnywhere)
     FVector MeshScale = FVector(1.0f, 1.0f, 1.0f);
 
-    
+
 };
 
 UCLASS()
@@ -73,6 +73,20 @@ public:
     UPROPERTY(EditAnywhere, Category = "Border")
     float BorderWallThickness = 200.0f;
 
+    UPROPERTY(EditAnywhere, Category = "Border")
+    UMaterialInterface* BorderWallMaterial = nullptr;
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    UStaticMesh* BorderWallMesh = nullptr; // assign Engine cube or your own mesh in BP defaults
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    float CeilingThickness = 200.0f;
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    UStaticMesh* CeilingMesh = nullptr;  // can reuse BorderWallMesh if you want, or assign separately
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    UMaterialInterface* CeilingMaterial = nullptr;
 
 protected:
     virtual void BeginPlay() override;
@@ -96,10 +110,11 @@ private:
     void CreateVertices();
     void CreateTriangles();
     void PlaceObjects(const FObjectPlacementConfig& Config); 
-    TArray<UBoxComponent*> BorderWalls;
+    TArray<UStaticMeshComponent*> BorderWalls; // changed from TArray<UBoxComponent*>
     void CreateBorderWalls();
     void ClearBorderWalls();
     bool IsWithinPlayableBounds(const FVector& LocalVertexPos) const;
+    void CreateCeiling();
 
     void ApplyLevelSettings(int32 Level);
 };

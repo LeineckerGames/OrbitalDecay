@@ -55,6 +55,7 @@ void ADiaMONDSQUARE::BeginPlay()
 	ProceduralMesh->SetMaterial(0, Material);
 
 	CreateBorderWalls(); // NEW
+	CreateCeiling();
 
 	for (const FObjectPlacementConfig& Config : ObjectLayers)
 	{
@@ -63,9 +64,6 @@ void ADiaMONDSQUARE::BeginPlay()
 
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("BeginPlay ran"));
 }
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("BeginPlay ran"));
-}
-
 
 void ADiaMONDSQUARE::Tick(float DeltaTime)
 {
@@ -120,7 +118,7 @@ bool ADiaMONDSQUARE::IsWithinPlayableBounds(const FVector& LocalVertexPos) const
 
 void ADiaMONDSQUARE::ClearBorderWalls()
 {
-	for (UBoxComponent* Wall : BorderWalls)
+	for (UStaticMeshComponent* Wall : BorderWalls)   // change from UBoxComponent*
 	{
 		if (Wall) Wall->DestroyComponent();
 	}
@@ -135,29 +133,72 @@ void ADiaMONDSQUARE::CreateBorderWalls()
 	const float MaxY = (YSize * Scale) - BorderMargin;
 	const float CenterZ = BorderWallHeight * 0.5f;
 
+	// Engine's unit cube is 100x100x100 — scale to match desired extents
 	auto SpawnWall = [&](FVector LocalCenter, FVector BoxExtent)
-	{
-		UBoxComponent* Wall = NewObject<UBoxComponent>(this);
-		Wall->SetupAttachment(GetRootComponent());
-		Wall->RegisterComponent();
-		Wall->SetBoxExtent(BoxExtent);
-		Wall->SetRelativeLocation(LocalCenter);
-		Wall->SetCollisionProfileName(TEXT("BlockAll"));
-		Wall->SetVisibility(false); // invisible — terrain still renders past it
-		BorderWalls.Add(Wall);
-	};
+		{
+			UStaticMeshComponent* Wall = NewObject<UStaticMeshComponent>(this);
+			Wall->SetupAttachment(GetRootComponent());
+			Wall->RegisterComponent();
 
-	// North / South walls (run along X, thin along Y)
+			if (BorderWallMesh)
+			{
+				Wall->SetStaticMesh(BorderWallMesh);
+			}
+
+			if (BorderWallMaterial)
+			{
+				Wall->SetMaterial(0, BorderWallMaterial);
+			}
+
+			Wall->SetRelativeLocation(LocalCenter);
+			// BoxExtent here is half-size; unit cube is 100 units, so divide by 50 to get scale factor
+			Wall->SetRelativeScale3D(BoxExtent / 50.0f);
+			Wall->SetCollisionProfileName(TEXT("BlockAll"));
+			Wall->SetCastShadow(false); // optional — avoid huge shadow-casting walls
+
+			BorderWalls.Add(Wall);
+		};
+
 	SpawnWall(FVector((MinX + MaxX) * 0.5f, MinY, CenterZ),
 		FVector((MaxX - MinX) * 0.5f, BorderWallThickness * 0.5f, BorderWallHeight * 0.5f));
 	SpawnWall(FVector((MinX + MaxX) * 0.5f, MaxY, CenterZ),
 		FVector((MaxX - MinX) * 0.5f, BorderWallThickness * 0.5f, BorderWallHeight * 0.5f));
-
-	// East / West walls (run along Y, thin along X)
 	SpawnWall(FVector(MinX, (MinY + MaxY) * 0.5f, CenterZ),
 		FVector(BorderWallThickness * 0.5f, (MaxY - MinY) * 0.5f, BorderWallHeight * 0.5f));
 	SpawnWall(FVector(MaxX, (MinY + MaxY) * 0.5f, CenterZ),
 		FVector(BorderWallThickness * 0.5f, (MaxY - MinY) * 0.5f, BorderWallHeight * 0.5f));
+}
+
+void ADiaMONDSQUARE::CreateCeiling()
+{
+	const float MinX = BorderMargin;
+	const float MaxX = (XSize * Scale) - BorderMargin;
+	const float MinY = BorderMargin;
+	const float MaxY = (YSize * Scale) - BorderMargin;
+
+	UStaticMeshComponent* Ceiling = NewObject<UStaticMeshComponent>(this);
+	Ceiling->SetupAttachment(GetRootComponent());
+	Ceiling->RegisterComponent();
+
+	if (CeilingMesh)
+	{
+		Ceiling->SetStaticMesh(CeilingMesh);
+	}
+
+	if (CeilingMaterial)
+	{
+		Ceiling->SetMaterial(0, CeilingMaterial);
+	}
+
+	const FVector LocalCenter((MinX + MaxX) * 0.5f, (MinY + MaxY) * 0.5f, BorderWallHeight); // was CeilingHeight
+	const FVector BoxExtent((MaxX - MinX) * 0.5f, (MaxY - MinY) * 0.5f, CeilingThickness * 0.5f);
+
+	Ceiling->SetRelativeLocation(LocalCenter);
+	Ceiling->SetRelativeScale3D(BoxExtent / 50.0f);
+	Ceiling->SetCollisionProfileName(TEXT("BlockAll"));
+	Ceiling->SetCastShadow(false);
+
+	BorderWalls.Add(Ceiling);
 }
 
 void ADiaMONDSQUARE::ApplyLevelSettings(int32 Level)

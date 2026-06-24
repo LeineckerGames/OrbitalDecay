@@ -27,6 +27,15 @@ public:
     UPROPERTY(VisibleAnywhere, Category = "Components")
     UCameraComponent* ReplayCamera;
 
+    UPROPERTY(VisibleAnywhere, Category = "Components")
+    class USceneCaptureComponent2D* BottomCamera;
+
+    UPROPERTY(VisibleAnywhere, Category = "Components")
+    class UTextureRenderTarget2D* BottomCameraRenderTarget;
+
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    bool bShowBottomCamera = false;
+
     UPROPERTY(EditAnywhere, Category = "Replay")
     AReplayRecorder* ReplayRecorder = nullptr;
 
@@ -153,11 +162,12 @@ public:
     void RotateLeft();
     void RotateRight();
     void ToggleThrustMode();
+    void ToggleBottomCamera();
     void ActivateBoost();
     void AddFuel(float Amount);
     void StartCrashReplay();
     void DisablePlayerInput();
-    void ResetPawn(); // Sprint 5 stub
+    void ResetPawn(); 
     void PlayKeyClickSound();
     void PlaySwitchSound();
     void PlayFuelSound();

@@ -15,6 +15,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Containers/Ticker.h"
 #include "Rendering/DrawElements.h"
+#include "Engine/TextureRenderTarget2D.h"
 
 // ─── Color palette ────────────────────────────────────────────────
 static const FLinearColor C_PanelBg = FLinearColor(0.05f, 0.06f, 0.08f, 1.f);
@@ -288,6 +289,17 @@ TSharedRef<SWidget> SCockpitWidget::BuildWindowArea()
         .VAlign(VAlign_Fill)
         [ SNew(SSpacer) ]
 
+        // Bottom camera feed — bottom-left of the window, a square
+        // "screen" whose bottom edge sits flush against the top of
+        // the control panel below, like a physically mounted monitor.
+        + SOverlay::Slot()
+        .HAlign(HAlign_Left)
+        .VAlign(VAlign_Bottom)
+        .Padding(12.f, 0.f, 0.f, 0.f)
+        [
+            BuildBottomCameraFeed()
+        ]
+
         // Pause button — top right corner
         + SOverlay::Slot()
         .HAlign(HAlign_Right)
@@ -334,6 +346,146 @@ TSharedRef<SWidget> SCockpitWidget::BuildWindowArea()
             .Font(FCoreStyle::GetDefaultFontStyle("Bold", 28))
             .ColorAndOpacity_Lambda([this]() { return ResultColor; })
             .Text_Lambda([this]() { return ResultText; })
+        ];
+}
+
+// ─── Bottom Camera Feed ─────────────────────────────────────────────
+// Square live-render display anchored at the bottom-left of the
+// transparent window, sized to ~1/4 of the window's typical width.
+// Only visible while the player has the camera toggled on.
+TSharedRef<SWidget> SCockpitWidget::BuildBottomCameraFeed()
+{
+    return SNew(SBox)
+        .WidthOverride(220.f)
+        .HeightOverride(220.f)
+        .Visibility_Lambda([this]() -> EVisibility
+        {
+            if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+            {
+                ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                if (Pawn && Pawn->bShowBottomCamera)
+                    return EVisibility::Visible;
+            }
+            return EVisibility::Hidden;
+        })
+        [
+            SNew(SBorder)
+            .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+            .BorderBackgroundColor(C_PanelBorder)
+            .Padding(4.f)
+            [
+                SAssignNew(BottomCameraImage, SImage)
+                .Image_Lambda([this]() -> const FSlateBrush*
+                {
+                    static FSlateBrush DynamicBrush;
+                    if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                    {
+                        ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                        if (Pawn && Pawn->BottomCameraRenderTarget)
+                        {
+                            DynamicBrush.SetResourceObject(Pawn->BottomCameraRenderTarget);
+                            DynamicBrush.ImageSize = FVector2D(220.f, 220.f);
+                            return &DynamicBrush;
+                        }
+                    }
+                    return FCoreStyle::Get().GetBrush("WhiteBrush");
+                })
+            ]
+        ];
+}
+
+// ─── Bottom Camera Toggle Button ────────────────────────────────────
+// Small 48x48 button, same size as the pause button, drawn with a
+// simple hand-built camera icon (body + lens) rather than the live
+// feed itself — lives in the left control panel next to Throttle.
+TSharedRef<SWidget> SCockpitWidget::BuildBottomCameraToggle()
+{
+    return SAssignNew(BottomCameraToggleButton, SButton)
+        .ButtonColorAndOpacity_Lambda([this]() -> FSlateColor
+        {
+            if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+            {
+                ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                if (Pawn && Pawn->bShowBottomCamera)
+                    return FSlateColor(FLinearColor(0.10f, 0.30f, 0.16f, 1.f)); // lit green-ish when active
+            }
+            return FSlateColor(FLinearColor(0.08f, 0.10f, 0.14f, 0.85f)); // default dark, matches pause button
+        })
+        .HAlign(HAlign_Center)
+        .VAlign(VAlign_Center)
+        .OnClicked_Lambda([this]() -> FReply
+        {
+            if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+            {
+                ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                if (Pawn) Pawn->ToggleBottomCamera();
+            }
+            return FReply::Handled();
+        })
+        [
+            SNew(SBox)
+            .WidthOverride(28.f)
+            .HeightOverride(22.f)
+            [
+                SNew(SOverlay)
+
+                // Camera body — rounded-feeling rectangle
+                + SOverlay::Slot()
+                .HAlign(HAlign_Fill)
+                .VAlign(VAlign_Fill)
+                [
+                    SNew(SBorder)
+                    .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                    .BorderBackgroundColor(FLinearColor(0.20f, 1.00f, 0.30f, 1.f))
+                ]
+
+                // Small "viewfinder bump" on top
+                + SOverlay::Slot()
+                .HAlign(HAlign_Center)
+                .VAlign(VAlign_Top)
+                .Padding(0.f, -5.f, 0.f, 0.f)
+                [
+                    SNew(SBox)
+                    .WidthOverride(10.f)
+                    .HeightOverride(5.f)
+                    [
+                        SNew(SBorder)
+                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                        .BorderBackgroundColor(FLinearColor(0.20f, 1.00f, 0.30f, 1.f))
+                    ]
+                ]
+
+                // Lens — dark circle approximation in the center
+                + SOverlay::Slot()
+                .HAlign(HAlign_Center)
+                .VAlign(VAlign_Center)
+                [
+                    SNew(SBox)
+                    .WidthOverride(12.f)
+                    .HeightOverride(12.f)
+                    [
+                        SNew(SBorder)
+                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                        .BorderBackgroundColor(FLinearColor(0.05f, 0.06f, 0.08f, 1.f))
+                    ]
+                ]
+
+                // Inner lens glint
+                + SOverlay::Slot()
+                .HAlign(HAlign_Center)
+                .VAlign(VAlign_Center)
+                .Padding(0.f, -2.f, 2.f, 0.f)
+                [
+                    SNew(SBox)
+                    .WidthOverride(4.f)
+                    .HeightOverride(4.f)
+                    [
+                        SNew(SBorder)
+                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                        .BorderBackgroundColor(FLinearColor(0.60f, 0.95f, 0.70f, 0.8f))
+                    ]
+                ]
+            ]
         ];
 }
 
@@ -389,18 +541,43 @@ TSharedRef<SWidget> SCockpitWidget::BuildLeftPanel()
                 ]
 
             + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 2)
+            [
+                SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("THROTTLE")))
+                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
+                    .ColorAndOpacity(C_AccentAmber)
+            ]
+
+            // Throttle indicator — centered alone
+            + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 4)
+            [
+                BuildThrottleIndicator()
+            ]
+
+            // Camera toggle (left) + Thrust Switch (right) — evenly split
+            + SVerticalBox::Slot().AutoHeight().Padding(0, 4)
+            [
+                SNew(SHorizontalBox)
+
+                + SHorizontalBox::Slot()
+                .FillWidth(1.f)
+                .HAlign(HAlign_Center)
                 [
-                    SNew(STextBlock)
-                        .Text(FText::FromString(TEXT("THROTTLE")))
-                        .Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
-                        .ColorAndOpacity(C_AccentAmber)
+                    SNew(SBox)
+                    .WidthOverride(48.f)
+                    .HeightOverride(48.f)
+                    [
+                        BuildBottomCameraToggle()
+                    ]
                 ]
 
-                + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 4)
-                [BuildThrottleIndicator()]
-
-                + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 4)
-                [BuildThrustSwitch()]
+                + SHorizontalBox::Slot()
+                .FillWidth(1.f)
+                .HAlign(HAlign_Center)
+                [
+                    BuildThrustSwitch()
+                ]
+            ]
         ];
 }
 
@@ -1019,6 +1196,15 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
             ResultText = FText::FromString(P->bForwardThrustMode ?
                 TEXT("FORWARD THRUST") : TEXT("VERTICAL THRUST"));
             ResultColor = FSlateColor(C_AccentAmber);
+        }
+        return FReply::Handled();
+    }
+
+    if (InKeyEvent.GetKey() == EKeys::C)
+    {
+        if (P)
+        {
+            P->ToggleBottomCamera();
         }
         return FReply::Handled();
     }

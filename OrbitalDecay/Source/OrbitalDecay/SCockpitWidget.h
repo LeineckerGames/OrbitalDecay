@@ -59,6 +59,8 @@ private:
     TWeakObjectPtr<AMyHUD> MyOwnerHUD;
     TSharedPtr<SEditableText> AnswerInputBox;
     TSharedPtr<SButton> PauseButton;
+    TSharedPtr<SButton> BottomCameraToggleButton;
+    TSharedPtr<SImage> BottomCameraImage;
     FText       ResultText;
     FSlateColor ResultColor;
     bool        bInputEnabled = true;
@@ -73,6 +75,8 @@ private:
     int32 TypewriterIndex = 0;
 
     TSharedRef<SWidget> BuildWindowArea();
+    TSharedRef<SWidget> BuildBottomCameraFeed(); 
+    TSharedRef<SWidget> BuildBottomCameraToggle();
     TSharedRef<SWidget> BuildBottomPanel();
     TSharedRef<SWidget> BuildLeftPanel();
     TSharedRef<SWidget> BuildCenterPanel();

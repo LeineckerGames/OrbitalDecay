@@ -95,4 +95,8 @@ private:
     FReply OnAnswerCommitted(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
     void   CheckAnswer();
     void   AppendToInput(FString Character);
+
+    // The movement action queued by the last key press, independent of question type.
+    // Values: "boost" | "rotate_left" | "rotate_right" | "fuel"
+    FString PendingAction;
 };

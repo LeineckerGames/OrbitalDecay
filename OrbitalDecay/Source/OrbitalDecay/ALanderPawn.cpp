@@ -5,6 +5,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "MyHUD.h"
 #include "Components/AudioComponent.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Engine/TextureRenderTarget2D.h"
 
 ALanderPawn::ALanderPawn()
 {
@@ -35,6 +37,10 @@ ALanderPawn::ALanderPawn()
     ReplayCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("ReplayCamera"));
     ReplayCamera->SetupAttachment(ReplaySpringArm);
     ReplayCamera->SetActive(false);
+
+    
+    
+    
 
     ThrustAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("ThrustAudio"));
     ThrustAudioComponent->SetupAttachment(RootComponent);
@@ -78,6 +84,29 @@ void ALanderPawn::BeginPlay()
 {
     Super::BeginPlay();
     TargetRotation = GetActorRotation();
+
+    
+    // Bottom-facing scene capture, created at runtime (not in the
+    // constructor) — USceneCaptureComponent2D needs the actor and
+    // world fully registered before it sets up render resources,
+    // otherwise it crashes the renderer on level load.
+    BottomCameraRenderTarget = NewObject<UTextureRenderTarget2D>(this);
+    BottomCameraRenderTarget->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA8;
+    BottomCameraRenderTarget->ClearColor = FLinearColor::Black;
+    BottomCameraRenderTarget->TargetGamma = 2.2f;
+    BottomCameraRenderTarget->InitAutoFormat(256, 256);
+    BottomCameraRenderTarget->UpdateResourceImmediate(true);
+
+    BottomCamera = NewObject<USceneCaptureComponent2D>(this, TEXT("BottomCamera"));
+    BottomCamera->SetupAttachment(RootComponent);
+    BottomCamera->RegisterComponent();
+    BottomCamera->SetRelativeLocation(FVector(0.f, 0.f, -150.f));
+    BottomCamera->SetRelativeRotation(FRotator(-90.f, 0.f, 0.f));
+    BottomCamera->TextureTarget = BottomCameraRenderTarget;
+    BottomCamera->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+    BottomCamera->bCaptureEveryFrame = false;
+    BottomCamera->Deactivate();
+    
 
     if (MissionCharacters.Num() > 0)
     {
@@ -420,6 +449,23 @@ void ALanderPawn::AddFuel(float Amount)
 void ALanderPawn::ToggleThrustMode()
 {
     bForwardThrustMode = !bForwardThrustMode;
+}
+
+void ALanderPawn::ToggleBottomCamera()
+{
+    if (!BottomCamera) return;
+    
+    bShowBottomCamera = !bShowBottomCamera;
+    BottomCamera->bCaptureEveryFrame = bShowBottomCamera;
+    if (bShowBottomCamera)
+    {
+        BottomCamera->Activate();
+        BottomCamera->CaptureScene();
+    }
+    else
+    {
+        BottomCamera->Deactivate();
+    }
 }
 
 void ALanderPawn::RotateLeft()

@@ -32,7 +32,10 @@ struct FObjectPlacementConfig
     UPROPERTY(EditAnywhere)
     FVector MeshScale = FVector(1.0f, 1.0f, 1.0f);
 
-
+    // Maximum distance from the centre of the map this layer may spawn.
+    // 0 = no restriction (use the full terrain).
+    UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.0f))
+    float MaxSpawnRadius = 0.0f;
 };
 
 UCLASS()
@@ -61,7 +64,23 @@ public:
     UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.000001))
     float UVScale = 0;
 
-    UPROPERTY(EditAnywhere)               
+    // Enable to bend the terrain surface as if it wraps around a sphere,
+    // creating a visible curved horizon. Smaller radius = more dramatic curve.
+    UPROPERTY(EditAnywhere, Category = "Planet")
+    bool bEnablePlanetCurvature = false;
+
+    // Radius of the planet in Unreal units. Try 50000–500000.
+    // Smaller = tighter curve visible at shorter distances.
+    UPROPERTY(EditAnywhere, Category = "Planet", Meta = (EditCondition = "bEnablePlanetCurvature", ClampMin = 1000.0))
+    float PlanetRadius = 200000.0f;
+
+    // Fraction of the half-extent that stays flat before curvature begins (0–1).
+    // 0 = curvature starts at the centre; 0.7 = inner 70% is flat playable area,
+    // outer 30% curves down to the horizon. Match this to your border edge.
+    UPROPERTY(EditAnywhere, Category = "Planet", Meta = (EditCondition = "bEnablePlanetCurvature", ClampMin = 0.0, ClampMax = 1.0))
+    float CurvatureEdgeFalloff = 0.7f;
+
+    UPROPERTY(EditAnywhere)
     TArray<FObjectPlacementConfig> ObjectLayers;
 
     UPROPERTY(EditAnywhere, Category = "Border")
@@ -91,7 +110,13 @@ public:
     UPROPERTY(EditAnywhere, Category = "Border")
     bool bBorderTriggersCrash = false;   // toggle on/off, checked live at hit time
 
+    // Seed used for editor preview and (optionally) runtime generation.
+    // Change this to get a different terrain shape without pressing Play.
+    UPROPERTY(EditAnywhere, Category = "Generation")
+    int32 Seed = 42;
+
 protected:
+    virtual void OnConstruction(const FTransform& Transform) override;
     virtual void BeginPlay() override;
 
     UPROPERTY(EditAnywhere)

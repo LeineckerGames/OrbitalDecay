@@ -291,29 +291,39 @@ void ADiaMONDSQUARE::ApplyLevelSettings(int32 Level)
 	switch (SteppedLevel)
 	{
 	case 1:
+		XSize = 150;
+		YSize = 150;
 		ZMultiplier  = 150.0f;
 		NoiseScale   = 0.3f;
-		BorderMargin = 800.0f;
-		break;
-	case 6:
-		ZMultiplier  = 300.0f;
-		NoiseScale   = 0.5f;
-		BorderMargin = 900.0f;
-		break;
-	case 11:
-		ZMultiplier  = 450.0f;
-		NoiseScale   = 0.7f;
-		BorderMargin = 1000.0f;
-		break;
-	case 16:
-		ZMultiplier  = 600.0f;
-		NoiseScale   = 0.9f;
 		BorderMargin = 1100.0f;
 		break;
+	case 6:
+		XSize = 150;
+		YSize = 150;
+		ZMultiplier  = 300.0f;
+		NoiseScale   = 0.5f;
+		BorderMargin = 1000.0f;
+		break;
+	case 11:
+		XSize = 150;
+		YSize = 150;
+		ZMultiplier  = 450.0f;
+		NoiseScale   = 0.7f;
+		BorderMargin = 900.0f;
+		break;
+	case 16:
+		XSize = 150;
+		YSize = 150;
+		ZMultiplier  = 600.0f;
+		NoiseScale   = 0.9f;
+		BorderMargin = 800.0f;
+		break;
 	default:
+		XSize = 150;
+		YSize = 150;
 		ZMultiplier  = 150.0f;
 		NoiseScale   = 0.3f;
-		BorderMargin = 800.0f;
+		BorderMargin = 1100.0f;
 		break;
 	}
 }

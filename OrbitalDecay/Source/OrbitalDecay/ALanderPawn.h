@@ -166,6 +166,7 @@ public:
     void ActivateBoost();
     void AddFuel(float Amount);
     void StartCrashReplay();
+    void TriggerCrash();
     void DisablePlayerInput();
     void ResetPawn(); 
     void PlayKeyClickSound();

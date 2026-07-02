@@ -36,6 +36,12 @@ struct FObjectPlacementConfig
     // 0 = no restriction (use the full terrain).
     UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.0f))
     float MaxSpawnRadius = 0.0f;
+
+    // Extra inset from the border walls for this layer's spawn zone.
+    // Set this to at least half the object's footprint so no part of
+    // the mesh can clip into a boundary wall.
+    UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.0f))
+    float SpawnBorderPadding = 0.0f;
 };
 
 UCLASS()
@@ -144,7 +150,7 @@ private:
     TArray<UStaticMeshComponent*> BorderWalls; // changed from TArray<UBoxComponent*>
     void CreateBorderWalls();
     void ClearBorderWalls();
-    bool IsWithinPlayableBounds(const FVector& LocalVertexPos) const;
+    bool IsWithinPlayableBounds(const FVector& LocalVertexPos, float ExtraPadding = 0.0f) const;
     void CreateCeiling();
     void UpdateTerrainMaterial(int32 Level);
     UFUNCTION()

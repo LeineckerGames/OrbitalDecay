@@ -42,6 +42,13 @@ struct FObjectPlacementConfig
     // the mesh can clip into a boundary wall.
     UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.0f))
     float SpawnBorderPadding = 0.0f;
+
+    // How many grid cells to sample around the spawn vertex when finding the
+    // surface height. The highest Z found is used as the base, preventing the
+    // object from embedding into sloped terrain. 0 = use the vertex Z only.
+    // Set to 2-3 for large objects like landing pads; leave at 0 for small rocks.
+    UPROPERTY(EditAnywhere, Meta = (ClampMin = 0))
+    int32 SurfaceSampleRadius = 0;
 };
 
 UCLASS()

@@ -221,10 +221,13 @@ void ADiaMONDSQUARE::CreateTriangles()
 
 bool ADiaMONDSQUARE::IsWithinPlayableBounds(const FVector& LocalVertexPos) const
 {
-	const float MinX = BorderMargin;
-	const float MaxX = (XSize * Scale) - BorderMargin;
-	const float MinY = BorderMargin;
-	const float MaxY = (YSize * Scale) - BorderMargin;
+	const float HalfX = (XSize * Scale) * 0.5f;
+	const float HalfY = (YSize * Scale) * 0.5f;
+
+	const float MinX = -HalfX + BorderMargin;
+	const float MaxX = HalfX - BorderMargin;
+	const float MinY = -HalfY + BorderMargin;
+	const float MaxY = HalfY - BorderMargin;
 
 	return LocalVertexPos.X >= MinX && LocalVertexPos.X <= MaxX
 		&& LocalVertexPos.Y >= MinY && LocalVertexPos.Y <= MaxY;
@@ -241,13 +244,15 @@ void ADiaMONDSQUARE::ClearBorderWalls()
 
 void ADiaMONDSQUARE::CreateBorderWalls()
 {
-	const float MinX = BorderMargin;
-	const float MaxX = (XSize * Scale) - BorderMargin;
-	const float MinY = BorderMargin;
-	const float MaxY = (YSize * Scale) - BorderMargin;
+	const float HalfX = (XSize * Scale) * 0.5f;
+	const float HalfY = (YSize * Scale) * 0.5f;
+
+	const float MinX = -HalfX + BorderMargin;
+	const float MaxX = HalfX - BorderMargin;
+	const float MinY = -HalfY + BorderMargin;
+	const float MaxY = HalfY - BorderMargin;
 	const float CenterZ = BorderWallHeight * 0.5f;
 
-	// Engine's unit cube is 100x100x100 — scale to match desired extents
 	auto SpawnWall = [&](FVector LocalCenter, FVector BoxExtent)
 		{
 			UStaticMeshComponent* Wall = NewObject<UStaticMeshComponent>(this);
@@ -265,10 +270,9 @@ void ADiaMONDSQUARE::CreateBorderWalls()
 			}
 
 			Wall->SetRelativeLocation(LocalCenter);
-			// BoxExtent here is half-size; unit cube is 100 units, so divide by 50 to get scale factor
 			Wall->SetRelativeScale3D(BoxExtent / 50.0f);
 			Wall->SetCollisionProfileName(TEXT("BlockAll"));
-			Wall->SetCastShadow(false); // optional — avoid huge shadow-casting walls
+			Wall->SetCastShadow(false);
 			Wall->OnComponentHit.AddDynamic(this, &ADiaMONDSQUARE::OnBorderHit);
 
 			BorderWalls.Add(Wall);
@@ -286,10 +290,13 @@ void ADiaMONDSQUARE::CreateBorderWalls()
 
 void ADiaMONDSQUARE::CreateCeiling()
 {
-	const float MinX = BorderMargin;
-	const float MaxX = (XSize * Scale) - BorderMargin;
-	const float MinY = BorderMargin;
-	const float MaxY = (YSize * Scale) - BorderMargin;
+	const float HalfX = (XSize * Scale) * 0.5f;
+	const float HalfY = (YSize * Scale) * 0.5f;
+
+	const float MinX = -HalfX + BorderMargin;
+	const float MaxX = HalfX - BorderMargin;
+	const float MinY = -HalfY + BorderMargin;
+	const float MaxY = HalfY - BorderMargin;
 
 	UStaticMeshComponent* Ceiling = NewObject<UStaticMeshComponent>(this);
 	Ceiling->SetupAttachment(GetRootComponent());
@@ -305,7 +312,7 @@ void ADiaMONDSQUARE::CreateCeiling()
 		Ceiling->SetMaterial(0, CeilingMaterial);
 	}
 
-	const FVector LocalCenter((MinX + MaxX) * 0.5f, (MinY + MaxY) * 0.5f, BorderWallHeight); // was CeilingHeight
+	const FVector LocalCenter((MinX + MaxX) * 0.5f, (MinY + MaxY) * 0.5f, BorderWallHeight);
 	const FVector BoxExtent((MaxX - MinX) * 0.5f, (MaxY - MinY) * 0.5f, CeilingThickness * 0.5f);
 
 	Ceiling->SetRelativeLocation(LocalCenter);
@@ -316,7 +323,6 @@ void ADiaMONDSQUARE::CreateCeiling()
 
 	BorderWalls.Add(Ceiling);
 }
-
 void ADiaMONDSQUARE::OnBorderHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
@@ -372,6 +378,9 @@ void ADiaMONDSQUARE::ApplyLevelSettings(int32 Level)
 		BorderMargin = 1100.0f;
 		break;
 	}
+
+	GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow,
+		FString::Printf(TEXT("NoiseScale=%f ZMultiplier=%f Level=%d"), NoiseScale, ZMultiplier, Level));
 }
 
 void ADiaMONDSQUARE::UpdateTerrainMaterial(int32 Level)

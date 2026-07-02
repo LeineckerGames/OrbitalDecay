@@ -20,35 +20,60 @@ ADiaMONDSQUARE::ADiaMONDSQUARE()
 
 void ADiaMONDSQUARE::OnConstruction(const FTransform& Transform)
 {
-	Super::OnConstruction(Transform);
+    Super::OnConstruction(Transform);
 
-	// Build the mesh in the editor so you can see it without pressing Play.
-	// Uses Seed for a stable, reproducible shape. Objects are NOT spawned here.
-	RandomOffset = Seed * 137.5f; // deterministic offset from seed
+    // Use the preview level while editing.
+    ApplyLevelSettings(PreviewLevel);
 
-	Vertices.Reset();
-	Triangles.Reset();
-	UV0.Reset();
+    // Deterministic terrain based on the seed.
+    RandomOffset = Seed * 137.5f;
 
-	CreateVertices();
-	CreateTriangles();
+    Vertices.Reset();
+    Triangles.Reset();
+    UV0.Reset();
+    Normals.Reset();
+    Tangents.Reset();
 
-	ProceduralMesh->ClearAllMeshSections();
-	UKismetProceduralMeshLibrary::CalculateTangentsForMesh(Vertices, Triangles, UV0, Normals, Tangents);
-	ProceduralMesh->CreateMeshSection(0, Vertices, Triangles, Normals, UV0, TArray<FColor>(), Tangents, true);
-	ProceduralMesh->SetMaterial(0, Material);
+    CreateVertices();
+    CreateTriangles();
+
+    ProceduralMesh->ClearAllMeshSections();
+
+    UKismetProceduralMeshLibrary::CalculateTangentsForMesh(
+        Vertices,
+        Triangles,
+        UV0,
+        Normals,
+        Tangents
+    );
+
+    ProceduralMesh->CreateMeshSection(
+        0,
+        Vertices,
+        Triangles,
+        Normals,
+        UV0,
+        TArray<FColor>(),
+        Tangents,
+        true
+    );
+
+    UpdateTerrainMaterial(PreviewLevel);
 }
-
 void ADiaMONDSQUARE::BeginPlay()
 {
 	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE::BeginPlay START"));
 
 	Super::BeginPlay();
 
-	// Pull GlobalLevel and apply tuned values before generating
 	AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(GetWorld()->GetAuthGameMode());
-	int32 CurrentLevel = GM ? GM->GlobalLevel : 1;
+	int32 CurrentLevel = GM ? GM->GlobalLevel : PreviewLevel;
+
+	UE_LOG(LogTemp, Warning, TEXT("BeginPlay: GM valid=%s, GlobalLevel=%d"), GM ? TEXT("true") : TEXT("false"), CurrentLevel);
+	
 	ApplyLevelSettings(CurrentLevel);
+
+	UE_LOG(LogTemp, Warning, TEXT("Current Level = %d"), CurrentLevel);
 
 	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: randomising seed"));
 	FMath::RandInit(FDateTime::Now().GetTicks());
@@ -71,16 +96,33 @@ void ADiaMONDSQUARE::BeginPlay()
 	}
 	SpawnedActors.Reset();
 
-	ClearBorderWalls(); // clean up walls before regenerating, same pattern as objects/actors
+	ClearBorderWalls();
 
 	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: building mesh"));
 	ProceduralMesh->ClearAllMeshSections();
 	CreateVertices();
 	CreateTriangles();
 
-	UKismetProceduralMeshLibrary::CalculateTangentsForMesh(Vertices, Triangles, UV0, Normals, Tangents);
-	ProceduralMesh->CreateMeshSection(0, Vertices, Triangles, Normals, UV0, TArray<FColor>(), Tangents, true);
-	ProceduralMesh->SetMaterial(0, Material);
+	UKismetProceduralMeshLibrary::CalculateTangentsForMesh(
+		Vertices,
+		Triangles,
+		UV0,
+		Normals,
+		Tangents
+	);
+
+	ProceduralMesh->CreateMeshSection(
+		0,
+		Vertices,
+		Triangles,
+		Normals,
+		UV0,
+		TArray<FColor>(),
+		Tangents,
+		true
+	);
+
+	UpdateTerrainMaterial(CurrentLevel);
 
 	CreateBorderWalls();
 	CreateCeiling();
@@ -89,12 +131,16 @@ void ADiaMONDSQUARE::BeginPlay()
 	for (int32 i = 0; i < ObjectLayers.Num(); ++i)
 	{
 		const FObjectPlacementConfig& Config = ObjectLayers[i];
-		UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: PlaceObjects layer %d — ActorClass=%s Mesh=%s Count=%d"),
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("DiaMONDSQUARE: PlaceObjects layer %d — ActorClass=%s Mesh=%s Count=%d"),
 			i,
 			Config.ActorClass ? *Config.ActorClass->GetName() : TEXT("null"),
-			Config.Mesh       ? *Config.Mesh->GetName()       : TEXT("null"),
+			Config.Mesh ? *Config.Mesh->GetName() : TEXT("null"),
 			Config.Count);
+
 		PlaceObjects(Config);
+
 		UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: layer %d done"), i);
 	}
 
@@ -326,6 +372,21 @@ void ADiaMONDSQUARE::ApplyLevelSettings(int32 Level)
 		BorderMargin = 1100.0f;
 		break;
 	}
+}
+
+void ADiaMONDSQUARE::UpdateTerrainMaterial(int32 Level)
+{
+    UE_LOG(LogTemp, Warning, TEXT("UpdateTerrainMaterial: Level=%d, MaterialsNum=%d"), Level, TerrainMaterials.Num());
+
+    if (TerrainMaterials.Num() == 0)
+        return;
+
+    int32 MaterialIndex = (Level - 1) / 5;
+    MaterialIndex = FMath::Clamp(MaterialIndex, 0, TerrainMaterials.Num() - 1);
+
+    UE_LOG(LogTemp, Warning, TEXT("UpdateTerrainMaterial: MaterialIndex=%d"), MaterialIndex);
+
+    ProceduralMesh->SetMaterial(0, TerrainMaterials[MaterialIndex]);
 }
 
 void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)

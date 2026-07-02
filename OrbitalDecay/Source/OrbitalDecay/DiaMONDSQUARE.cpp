@@ -180,15 +180,18 @@ void ADiaMONDSQUARE::CreateTriangles()
 	}
 }
 
-bool ADiaMONDSQUARE::IsWithinPlayableBounds(const FVector& LocalVertexPos) const
+bool ADiaMONDSQUARE::IsWithinPlayableBounds(const FVector& LocalVertexPos, float ExtraPadding) const
 {
+	// ExtraPadding shrinks the zone further inward per-layer so large objects
+	// can't clip into the border walls even when their mesh extends past the pivot.
 	const float HalfX = (XSize * Scale) * 0.5f;
 	const float HalfY = (YSize * Scale) * 0.5f;
+	const float TotalMargin = BorderMargin + ExtraPadding;
 
-	const float MinX = -HalfX + BorderMargin;
-	const float MaxX = HalfX - BorderMargin;
-	const float MinY = -HalfY + BorderMargin;
-	const float MaxY = HalfY - BorderMargin;
+	const float MinX = -HalfX + TotalMargin;
+	const float MaxX =  HalfX - TotalMargin;
+	const float MinY = -HalfY + TotalMargin;
+	const float MaxY =  HalfY - TotalMargin;
 
 	return LocalVertexPos.X >= MinX && LocalVertexPos.X <= MaxX
 		&& LocalVertexPos.Y >= MinY && LocalVertexPos.Y <= MaxY;
@@ -384,7 +387,7 @@ void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
 
         FVector WorldPos = GetActorTransform().TransformPosition(Vertices[Idx]);
 
-		 if (!IsWithinPlayableBounds(Vertices[Idx]))
+        if (!IsWithinPlayableBounds(Vertices[Idx], Config.SpawnBorderPadding))
         {
             continue;
         }

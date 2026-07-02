@@ -7,38 +7,46 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Kismet/GameplayStatics.h"
 
+static const FLinearColor CS_Bg      = FLinearColor(0.00f, 0.00f, 0.00f, 0.80f);
+static const FLinearColor CS_Panel   = FLinearColor(0.06f, 0.04f, 0.04f, 1.f);
+static const FLinearColor CS_Border  = FLinearColor(0.20f, 0.10f, 0.10f, 1.f);
+static const FLinearColor CS_Title   = FLinearColor(0.95f, 0.15f, 0.10f, 1.f);
+static const FLinearColor CS_Sub     = FLinearColor(0.65f, 0.55f, 0.55f, 1.f);
+static const FLinearColor CS_BtnBg   = FLinearColor(0.10f, 0.12f, 0.18f, 1.f);
+static const FLinearColor CS_BtnRed  = FLinearColor(0.25f, 0.05f, 0.05f, 1.f);
+static const FLinearColor CS_Text    = FLinearColor(0.85f, 0.90f, 1.00f, 1.f);
 
 void SCrashScreen::Construct(const FArguments& InArgs)
 {
-    MyWorld = InArgs._OwnerWorld;
+    MyWorld      = InArgs._OwnerWorld;
+    CurrentLevel = InArgs._CurrentLevel;
 
     ChildSlot
     [
-        // Full screen dark overlay
         SNew(SOverlay)
 
+        // Full screen dark overlay
         + SOverlay::Slot()
         .HAlign(HAlign_Fill)
         .VAlign(VAlign_Fill)
         [
             SNew(SBorder)
             .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-            .BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.75f))
+            .BorderBackgroundColor(CS_Bg)
         ]
 
-        // Centered content
+        // Centered panel
         + SOverlay::Slot()
         .HAlign(HAlign_Center)
         .VAlign(VAlign_Center)
         [
             SNew(SBox)
-            .WidthOverride(400.f)
-            .HeightOverride(250.f)
+            .WidthOverride(480.f)
             [
                 SNew(SBorder)
                 .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                .BorderBackgroundColor(FLinearColor(0.08f, 0.05f, 0.05f, 1.f))
-                .Padding(30.f)
+                .BorderBackgroundColor(CS_Panel)
+                .Padding(36.f)
                 [
                     SNew(SVerticalBox)
 
@@ -46,48 +54,77 @@ void SCrashScreen::Construct(const FArguments& InArgs)
                     + SVerticalBox::Slot()
                     .AutoHeight()
                     .HAlign(HAlign_Center)
-                    .Padding(0.f, 0.f, 0.f, 16.f)
+                    .Padding(0, 0, 0, 12)
                     [
                         SNew(STextBlock)
                         .Text(FText::FromString(TEXT("CRASHED")))
-                        .Font(FCoreStyle::GetDefaultFontStyle("Bold", 42))
-                        .ColorAndOpacity(FLinearColor(0.95f, 0.15f, 0.10f, 1.f))
+                        .Font(FCoreStyle::GetDefaultFontStyle("Bold", 48))
+                        .ColorAndOpacity(CS_Title)
                         .Justification(ETextJustify::Center)
                     ]
 
-                    // Subtitle
+                    // "You crashed on Level N"
                     + SVerticalBox::Slot()
                     .AutoHeight()
                     .HAlign(HAlign_Center)
-                    .Padding(0.f, 0.f, 0.f, 30.f)
+                    .Padding(0, 0, 0, 32)
                     [
                         SNew(STextBlock)
-                        .Text(FText::FromString(TEXT("You missed the landing pad")))
-                        .Font(FCoreStyle::GetDefaultFontStyle("Regular", 16))
-                        .ColorAndOpacity(FLinearColor(0.75f, 0.75f, 0.75f, 1.f))
+                        .Text(FText::FromString(
+                            FString::Printf(TEXT("You crashed on Level %d"),
+                                CurrentLevel)))
+                        .Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
+                        .ColorAndOpacity(CS_Sub)
                         .Justification(ETextJustify::Center)
                     ]
 
-                    // RETRY button
+                    // Buttons row — RETRY (left) + MAIN MENU (right)
                     + SVerticalBox::Slot()
                     .AutoHeight()
-                    .HAlign(HAlign_Center)
                     [
-                        SNew(SBox)
-                        .WidthOverride(200.f)
-                        .HeightOverride(55.f)
+                        SNew(SHorizontalBox)
+
+                        + SHorizontalBox::Slot()
+                        .FillWidth(1.f)
+                        .Padding(0, 0, 8, 0)
                         [
-                            SNew(SButton)
-                            .ButtonColorAndOpacity(FLinearColor(0.15f, 0.20f, 0.25f, 1.f))
-                            .HAlign(HAlign_Center)
-                            .VAlign(VAlign_Center)
-                            .OnClicked(this, &SCrashScreen::OnRetryClicked)
+                            SNew(SBox)
+                            .HeightOverride(55.f)
                             [
-                                SNew(STextBlock)
-                                .Text(FText::FromString(TEXT("RETRY")))
-                                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 24))
-                                .ColorAndOpacity(FLinearColor(0.85f, 0.90f, 1.00f, 1.f))
-                                .Justification(ETextJustify::Center)
+                                SNew(SButton)
+                                .ButtonColorAndOpacity(CS_BtnBg)
+                                .HAlign(HAlign_Center)
+                                .VAlign(VAlign_Center)
+                                .OnClicked(this, &SCrashScreen::OnRetryClicked)
+                                [
+                                    SNew(STextBlock)
+                                    .Text(FText::FromString(TEXT("RETRY")))
+                                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 22))
+                                    .ColorAndOpacity(CS_Text)
+                                    .Justification(ETextJustify::Center)
+                                ]
+                            ]
+                        ]
+
+                        + SHorizontalBox::Slot()
+                        .FillWidth(1.f)
+                        .Padding(8, 0, 0, 0)
+                        [
+                            SNew(SBox)
+                            .HeightOverride(55.f)
+                            [
+                                SNew(SButton)
+                                .ButtonColorAndOpacity(CS_BtnRed)
+                                .HAlign(HAlign_Center)
+                                .VAlign(VAlign_Center)
+                                .OnClicked(this, &SCrashScreen::OnMainMenuClicked)
+                                [
+                                    SNew(STextBlock)
+                                    .Text(FText::FromString(TEXT("MAIN MENU")))
+                                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 22))
+                                    .ColorAndOpacity(CS_Text)
+                                    .Justification(ETextJustify::Center)
+                                ]
                             ]
                         ]
                     ]
@@ -101,17 +138,22 @@ FReply SCrashScreen::OnRetryClicked()
 {
     if (MyWorld)
     {
-        // Remove this widget from the viewport before reloading
         if (GEngine && GEngine->GameViewport)
-        {
-            GEngine->GameViewport->RemoveViewportWidgetContent(
-                SharedThis(this));
-        }
+            GEngine->GameViewport->RemoveViewportWidgetContent(SharedThis(this));
 
-        // Do NOT reset level progress on crash — the player should
-        // retry the SAME level they just failed, not go back to 1.
         UGameplayStatics::OpenLevel(MyWorld,
             FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
     }
+    return FReply::Handled();
+}
+
+FReply SCrashScreen::OnMainMenuClicked()
+{
+    if (GEngine && GEngine->GameViewport)
+        GEngine->GameViewport->RemoveAllViewportWidgets();
+
+    if (MyWorld)
+        UGameplayStatics::OpenLevel(MyWorld, FName("MainMenu"));
+
     return FReply::Handled();
 }

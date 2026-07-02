@@ -166,7 +166,16 @@ void AMyHUD::ShowCrashScreen()
         PC->SetInputMode(InputMode);
     }
 
-    MyCrashScreen = SNew(SCrashScreen).OwnerWorld(GetWorld());
+    // Read current level from game mode so crash screen can display it
+    int32 LevelNum = 1;
+    AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
+        GetWorld()->GetAuthGameMode());
+    if (GM) LevelNum = GM->GlobalLevel;
+
+    MyCrashScreen = SNew(SCrashScreen)
+        .OwnerWorld(GetWorld())
+        .CurrentLevel(LevelNum);
+        
     GEngine->GameViewport->AddViewportWidgetContent(
         MyCrashScreen.ToSharedRef(), 10); // zorder 10 = on top of cockpit
 }

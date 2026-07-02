@@ -124,9 +124,12 @@ public:
 protected:
     virtual void OnConstruction(const FTransform& Transform) override;
     virtual void BeginPlay() override;
+	
+    UPROPERTY(EditAnywhere, Category = "Terrain")
+    TArray<UMaterialInterface*> TerrainMaterials;
 
-    UPROPERTY(EditAnywhere)
-    UMaterialInterface* Material;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+    int32 PreviewLevel = 6;
 
 public:
     virtual void Tick(float DeltaTime) override;
@@ -149,6 +152,7 @@ private:
     void ClearBorderWalls();
     bool IsWithinPlayableBounds(const FVector& LocalVertexPos, float ExtraPadding = 0.0f) const;
     void CreateCeiling();
+    void UpdateTerrainMaterial(int32 Level);
     UFUNCTION()
     void OnBorderHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
         UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);

@@ -184,7 +184,7 @@ TSharedRef<SWidget> SMainMenuWidget::BuildHomePage()
 
             + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8)
             [
-                MakeMenuButton(TEXT("ABOUT"),
+                MakeMenuButton(TEXT("CREDITS"),
                     FOnClicked::CreateSP(this, &SMainMenuWidget::OnAboutClicked))
             ]
 
@@ -272,7 +272,7 @@ TSharedRef<SWidget> SMainMenuWidget::BuildAboutPage()
         + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 40)
         [
             SNew(STextBlock)
-            .Text(FText::FromString(TEXT("ABOUT")))
+            .Text(FText::FromString(TEXT("CREDITS")))
             .Font(FCoreStyle::GetDefaultFontStyle("Bold", 42))
             .ColorAndOpacity(MM_TitleColor)
         ]
@@ -283,7 +283,7 @@ TSharedRef<SWidget> SMainMenuWidget::BuildAboutPage()
             .WidthOverride(600.f)
             [
                 SNew(STextBlock)
-                .Text(FText::FromString(TEXT("This is a game.")))
+                .Text(FText::FromString(TEXT("Coming soon.")))
                 .Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
                 .ColorAndOpacity(MM_TextColor)
                 .AutoWrapText(true)

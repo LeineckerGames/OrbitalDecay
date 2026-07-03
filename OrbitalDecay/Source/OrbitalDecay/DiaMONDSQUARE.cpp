@@ -4,6 +4,8 @@
 #include "DiaMONDSQUARE.h"
 #include "ProceduralMeshComponent.h"
 #include "KismetProceduralMeshLibrary.h"
+#include "OrbitalDecayGameMode.h"
+#include "ALanderPawn.h"
 
 
 ADiaMONDSQUARE::ADiaMONDSQUARE()
@@ -18,30 +20,60 @@ ADiaMONDSQUARE::ADiaMONDSQUARE()
 
 void ADiaMONDSQUARE::OnConstruction(const FTransform& Transform)
 {
-	Super::OnConstruction(Transform);
+    Super::OnConstruction(Transform);
 
-	// Build the mesh in the editor so you can see it without pressing Play.
-	// Uses Seed for a stable, reproducible shape. Objects are NOT spawned here.
-	RandomOffset = Seed * 137.5f; // deterministic offset from seed
+    // Use the preview level while editing.
+    ApplyLevelSettings(PreviewLevel);
 
-	Vertices.Reset();
-	Triangles.Reset();
-	UV0.Reset();
+    // Deterministic terrain based on the seed.
+    RandomOffset = Seed * 137.5f;
 
-	CreateVertices();
-	CreateTriangles();
+    Vertices.Reset();
+    Triangles.Reset();
+    UV0.Reset();
+    Normals.Reset();
+    Tangents.Reset();
 
-	ProceduralMesh->ClearAllMeshSections();
-	UKismetProceduralMeshLibrary::CalculateTangentsForMesh(Vertices, Triangles, UV0, Normals, Tangents);
-	ProceduralMesh->CreateMeshSection(0, Vertices, Triangles, Normals, UV0, TArray<FColor>(), Tangents, true);
-	ProceduralMesh->SetMaterial(0, Material);
+    CreateVertices();
+    CreateTriangles();
+
+    ProceduralMesh->ClearAllMeshSections();
+
+    UKismetProceduralMeshLibrary::CalculateTangentsForMesh(
+        Vertices,
+        Triangles,
+        UV0,
+        Normals,
+        Tangents
+    );
+
+    ProceduralMesh->CreateMeshSection(
+        0,
+        Vertices,
+        Triangles,
+        Normals,
+        UV0,
+        TArray<FColor>(),
+        Tangents,
+        true
+    );
+
+    UpdateTerrainMaterial(PreviewLevel);
 }
-
 void ADiaMONDSQUARE::BeginPlay()
 {
 	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE::BeginPlay START"));
 
 	Super::BeginPlay();
+
+	AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(GetWorld()->GetAuthGameMode());
+	int32 CurrentLevel = GM ? GM->GlobalLevel : PreviewLevel;
+
+	UE_LOG(LogTemp, Warning, TEXT("BeginPlay: GM valid=%s, GlobalLevel=%d"), GM ? TEXT("true") : TEXT("false"), CurrentLevel);
+	
+	ApplyLevelSettings(CurrentLevel);
+
+	UE_LOG(LogTemp, Warning, TEXT("Current Level = %d"), CurrentLevel);
 
 	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: randomising seed"));
 	FMath::RandInit(FDateTime::Now().GetTicks());
@@ -64,32 +96,57 @@ void ADiaMONDSQUARE::BeginPlay()
 	}
 	SpawnedActors.Reset();
 
+	ClearBorderWalls();
+
 	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: building mesh"));
 	ProceduralMesh->ClearAllMeshSections();
 	CreateVertices();
 	CreateTriangles();
 
-	UKismetProceduralMeshLibrary::CalculateTangentsForMesh(Vertices, Triangles, UV0, Normals, Tangents);
-	ProceduralMesh->CreateMeshSection(0, Vertices, Triangles, Normals, UV0, TArray<FColor>(), Tangents, true);
-	ProceduralMesh->SetMaterial(0, Material);
+	UKismetProceduralMeshLibrary::CalculateTangentsForMesh(
+		Vertices,
+		Triangles,
+		UV0,
+		Normals,
+		Tangents
+	);
+
+	ProceduralMesh->CreateMeshSection(
+		0,
+		Vertices,
+		Triangles,
+		Normals,
+		UV0,
+		TArray<FColor>(),
+		Tangents,
+		true
+	);
+
+	UpdateTerrainMaterial(CurrentLevel);
+
+	CreateBorderWalls();
+	CreateCeiling();
 
 	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: placing objects (%d layers)"), ObjectLayers.Num());
 	for (int32 i = 0; i < ObjectLayers.Num(); ++i)
 	{
 		const FObjectPlacementConfig& Config = ObjectLayers[i];
-		UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: PlaceObjects layer %d — ActorClass=%s Mesh=%s Count=%d"),
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("DiaMONDSQUARE: PlaceObjects layer %d — ActorClass=%s Mesh=%s Count=%d"),
 			i,
-			(IsValid(Config.ActorClass)) ? *Config.ActorClass->GetName() : TEXT("null/invalid"),
-			(IsValid(Config.Mesh))       ? *Config.Mesh->GetName()       : TEXT("null/invalid"),
+			Config.ActorClass ? *Config.ActorClass->GetName() : TEXT("null"),
+			Config.Mesh ? *Config.Mesh->GetName() : TEXT("null"),
 			Config.Count);
+
 		PlaceObjects(Config);
+
 		UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE: layer %d done"), i);
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("DiaMONDSQUARE::BeginPlay DONE"));
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("BeginPlay ran"));
 }
-
 
 void ADiaMONDSQUARE::Tick(float DeltaTime)
 {
@@ -162,6 +219,208 @@ void ADiaMONDSQUARE::CreateTriangles()
 	}
 }
 
+bool ADiaMONDSQUARE::IsWithinPlayableBounds(const FVector& LocalVertexPos, float ExtraPadding) const
+{
+	// ExtraPadding shrinks the zone further inward per-layer so large objects
+	// can't clip into the border walls even when their mesh extends past the pivot.
+	const float HalfX = (XSize * Scale) * 0.5f;
+	const float HalfY = (YSize * Scale) * 0.5f;
+	const float TotalMargin = BorderMargin + ExtraPadding;
+
+	const float MinX = -HalfX + TotalMargin;
+	const float MaxX =  HalfX - TotalMargin;
+	const float MinY = -HalfY + TotalMargin;
+	const float MaxY =  HalfY - TotalMargin;
+
+	return LocalVertexPos.X >= MinX && LocalVertexPos.X <= MaxX
+		&& LocalVertexPos.Y >= MinY && LocalVertexPos.Y <= MaxY;
+}
+
+void ADiaMONDSQUARE::ClearBorderWalls()
+{
+	for (UStaticMeshComponent* Wall : BorderWalls)   // change from UBoxComponent*
+	{
+		if (Wall) Wall->DestroyComponent();
+	}
+	BorderWalls.Reset();
+}
+
+void ADiaMONDSQUARE::CreateBorderWalls()
+{
+	const float HalfX = (XSize * Scale) * 0.5f;
+	const float HalfY = (YSize * Scale) * 0.5f;
+
+	const float MinX = -HalfX + BorderMargin;
+	const float MaxX = HalfX - BorderMargin;
+	const float MinY = -HalfY + BorderMargin;
+	const float MaxY = HalfY - BorderMargin;
+	const float CenterZ = BorderWallHeight * 0.5f;
+
+	auto SpawnWall = [&](FVector LocalCenter, FVector BoxExtent)
+		{
+			UStaticMeshComponent* Wall = NewObject<UStaticMeshComponent>(this);
+			Wall->SetupAttachment(GetRootComponent());
+			Wall->RegisterComponent();
+
+			if (BorderWallMesh)
+			{
+				Wall->SetStaticMesh(BorderWallMesh);
+			}
+
+			if (BorderWallMaterial)
+			{
+				Wall->SetMaterial(0, BorderWallMaterial);
+			}
+
+			Wall->SetRelativeLocation(LocalCenter);
+			Wall->SetRelativeScale3D(BoxExtent / 50.0f);
+			Wall->SetCollisionProfileName(TEXT("BlockAll"));
+			Wall->SetCastShadow(false);
+			Wall->OnComponentHit.AddDynamic(this, &ADiaMONDSQUARE::OnBorderHit);
+
+			BorderWalls.Add(Wall);
+		};
+
+	SpawnWall(FVector((MinX + MaxX) * 0.5f, MinY, CenterZ),
+		FVector((MaxX - MinX) * 0.5f, BorderWallThickness * 0.5f, BorderWallHeight * 0.5f));
+	SpawnWall(FVector((MinX + MaxX) * 0.5f, MaxY, CenterZ),
+		FVector((MaxX - MinX) * 0.5f, BorderWallThickness * 0.5f, BorderWallHeight * 0.5f));
+	SpawnWall(FVector(MinX, (MinY + MaxY) * 0.5f, CenterZ),
+		FVector(BorderWallThickness * 0.5f, (MaxY - MinY) * 0.5f, BorderWallHeight * 0.5f));
+	SpawnWall(FVector(MaxX, (MinY + MaxY) * 0.5f, CenterZ),
+		FVector(BorderWallThickness * 0.5f, (MaxY - MinY) * 0.5f, BorderWallHeight * 0.5f));
+}
+
+void ADiaMONDSQUARE::CreateCeiling()
+{
+	const float HalfX = (XSize * Scale) * 0.5f;
+	const float HalfY = (YSize * Scale) * 0.5f;
+
+	const float MinX = -HalfX + BorderMargin;
+	const float MaxX = HalfX - BorderMargin;
+	const float MinY = -HalfY + BorderMargin;
+	const float MaxY = HalfY - BorderMargin;
+
+	UStaticMeshComponent* Ceiling = NewObject<UStaticMeshComponent>(this);
+	Ceiling->SetupAttachment(GetRootComponent());
+	Ceiling->RegisterComponent();
+
+	if (CeilingMesh)
+	{
+		Ceiling->SetStaticMesh(CeilingMesh);
+	}
+
+	if (CeilingMaterial)
+	{
+		Ceiling->SetMaterial(0, CeilingMaterial);
+	}
+
+	const FVector LocalCenter((MinX + MaxX) * 0.5f, (MinY + MaxY) * 0.5f, BorderWallHeight);
+	const FVector BoxExtent((MaxX - MinX) * 0.5f, (MaxY - MinY) * 0.5f, CeilingThickness * 0.5f);
+
+	Ceiling->SetRelativeLocation(LocalCenter);
+	Ceiling->SetRelativeScale3D(BoxExtent / 50.0f);
+	Ceiling->SetCollisionProfileName(TEXT("BlockAll"));
+	Ceiling->SetCastShadow(false);
+	Ceiling->OnComponentHit.AddDynamic(this, &ADiaMONDSQUARE::OnBorderHit);
+
+	BorderWalls.Add(Ceiling);
+}
+void ADiaMONDSQUARE::OnBorderHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	if (!bBorderTriggersCrash) return;
+
+	ALanderPawn* Lander = Cast<ALanderPawn>(OtherActor);
+	if (Lander)
+	{
+		Lander->TriggerCrash();
+	}
+}
+
+void ADiaMONDSQUARE::ApplyLevelSettings(int32 Level)
+{
+	// Buckets of 5 to match the gravity tiers already used in ALanderPawn
+	int32 SteppedLevel = ((Level - 1) / 5) * 5 + 1;
+
+	switch (SteppedLevel)
+	{
+	case 1:
+		XSize                = 160;
+		YSize                = 160;
+		Scale                = 1000.0f;
+		ZMultiplier          = 1200.0f;
+		NoiseScale           = 0.2f;
+		BorderMargin         = 72000.0f; // walls at ±8000 UU from centre (10% playable of 160000 map)
+		bEnablePlanetCurvature = true;
+		PlanetRadius         = 500000.0f;
+		CurvatureEdgeFalloff = 0.7f;
+		break;
+	case 6:
+		XSize                = 160;
+		YSize                = 160;
+		Scale                = 1000.0f;
+		ZMultiplier          = 2500.0f; // taller than level 1
+		NoiseScale           = 0.25f;   // broad hills, not spikes
+		BorderMargin         = 72000.0f;
+		bEnablePlanetCurvature = true;
+		PlanetRadius         = 500000.0f;
+		CurvatureEdgeFalloff = 0.7f;
+		break;
+	case 11:
+		XSize                = 160;
+		YSize                = 160;
+		Scale                = 1000.0f;
+		ZMultiplier          = 4000.0f; // dramatic mountain-scale height
+		NoiseScale           = 0.22f;   // slightly broader features than level 6
+		BorderMargin         = 72000.0f;
+		bEnablePlanetCurvature = true;
+		PlanetRadius         = 500000.0f;
+		CurvatureEdgeFalloff = 0.7f;
+		break;
+	case 16:
+		XSize                = 160;
+		YSize                = 160;
+		Scale                = 1000.0f;
+		ZMultiplier          = 6000.0f; // very tall peaks
+		NoiseScale           = 0.2f;    // same frequency as level 1 — broad and imposing
+		BorderMargin         = 72000.0f;
+		bEnablePlanetCurvature = true;
+		PlanetRadius         = 500000.0f;
+		CurvatureEdgeFalloff = 0.7f;
+		break;
+	default:
+		XSize                = 160;
+		YSize                = 160;
+		Scale                = 1000.0f;
+		ZMultiplier          = 1200.0f;
+		NoiseScale           = 0.2f;
+		BorderMargin         = 72000.0f;
+		bEnablePlanetCurvature = true;
+		PlanetRadius         = 500000.0f;
+		CurvatureEdgeFalloff = 0.7f;
+		break;
+	}
+
+	GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow,
+		FString::Printf(TEXT("NoiseScale=%f ZMultiplier=%f Level=%d"), NoiseScale, ZMultiplier, Level));
+}
+
+void ADiaMONDSQUARE::UpdateTerrainMaterial(int32 Level)
+{
+    UE_LOG(LogTemp, Warning, TEXT("UpdateTerrainMaterial: Level=%d, MaterialsNum=%d"), Level, TerrainMaterials.Num());
+
+    if (TerrainMaterials.Num() == 0)
+        return;
+
+    int32 MaterialIndex = (Level - 1) / 5;
+    MaterialIndex = FMath::Clamp(MaterialIndex, 0, TerrainMaterials.Num() - 1);
+
+    UE_LOG(LogTemp, Warning, TEXT("UpdateTerrainMaterial: MaterialIndex=%d"), MaterialIndex);
+
+    ProceduralMesh->SetMaterial(0, TerrainMaterials[MaterialIndex]);
+}
+
 void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
 {
     // Guard: need a world, valid vertices, and at least one thing to place.
@@ -206,7 +465,38 @@ void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
             if (Dist2D > Config.MaxSpawnRadius) continue;
         }
 
-        FVector WorldPos = GetActorTransform().TransformPosition(Vertices[Idx]);
+        // Find the highest terrain Z within SurfaceSampleRadius grid cells.
+        // This prevents large objects (e.g. landing pads) from embedding into
+        // sloped terrain where a nearby vertex is higher than the spawn vertex.
+        float LocalZ = Vertices[Idx].Z;
+        if (Config.SurfaceSampleRadius > 0)
+        {
+            const int32 Vx = Idx / (YSize + 1);
+            const int32 Vy = Idx % (YSize + 1);
+            const int32 R  = Config.SurfaceSampleRadius;
+            for (int32 Dx = -R; Dx <= R; ++Dx)
+            {
+                for (int32 Dy = -R; Dy <= R; ++Dy)
+                {
+                    const int32 Nx = Vx + Dx;
+                    const int32 Ny = Vy + Dy;
+                    if (Nx >= 0 && Nx <= XSize && Ny >= 0 && Ny <= YSize)
+                    {
+                        const int32 NIdx = Nx * (YSize + 1) + Ny;
+                        if (NIdx < Vertices.Num())
+                            LocalZ = FMath::Max(LocalZ, Vertices[NIdx].Z);
+                    }
+                }
+            }
+        }
+
+        FVector WorldPos = GetActorTransform().TransformPosition(
+            FVector(Vertices[Idx].X, Vertices[Idx].Y, LocalZ));
+
+        if (!IsWithinPlayableBounds(Vertices[Idx], Config.SpawnBorderPadding))
+        {
+            continue;
+        }
 
         bool bTooClose = false;
         for (const FVector& Existing : PlacedPositions)
@@ -221,10 +511,8 @@ void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
 
         FVector SpawnLocation = WorldPos + FVector(0.0f, 0.0f, Config.ZOffset);
 
-        // Actor path takes priority -- cleaner, scale is reliable.
-        // Use the non-templated SpawnActor to avoid the internal CastChecked<AActor>
-        // that the templated version adds; a stale ActorClass reference crashes there.
-        if (bHasValidClass)
+        // Actor path takes priority — cleaner, scale is reliable
+        if (Config.ActorClass)
         {
             FActorSpawnParameters SpawnParams;
             SpawnParams.Owner = this;

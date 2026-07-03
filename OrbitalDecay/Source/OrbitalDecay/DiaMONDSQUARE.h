@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "ProceduralMeshComponent.h"
 #include "DiaMONDSQUARE.generated.h"
+  
 
 class UProceduralMeshComponent;
 class UMaterialInterface;
@@ -35,6 +36,19 @@ struct FObjectPlacementConfig
     // 0 = no restriction (use the full terrain).
     UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.0f))
     float MaxSpawnRadius = 0.0f;
+
+    // Extra inset from the border walls for this layer's spawn zone.
+    // Set this to at least half the object's footprint so no part of
+    // the mesh can clip into a boundary wall.
+    UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.0f))
+    float SpawnBorderPadding = 0.0f;
+
+    // How many grid cells to sample around the spawn vertex when finding the
+    // surface height. The highest Z found is used as the base, preventing the
+    // object from embedding into sloped terrain. 0 = use the vertex Z only.
+    // Set to 2-3 for large objects like landing pads; leave at 0 for small rocks.
+    UPROPERTY(EditAnywhere, Meta = (ClampMin = 0))
+    int32 SurfaceSampleRadius = 0;
 };
 
 UCLASS()
@@ -82,6 +96,32 @@ public:
     UPROPERTY(EditAnywhere)
     TArray<FObjectPlacementConfig> ObjectLayers;
 
+    UPROPERTY(EditAnywhere, Category = "Border")
+    float BorderMargin = 800.0f;       // distance inward from the mesh edge to the playable boundary
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    float BorderWallHeight = 5000.0f;
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    float BorderWallThickness = 200.0f;
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    UMaterialInterface* BorderWallMaterial = nullptr;
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    UStaticMesh* BorderWallMesh = nullptr; // assign Engine cube or your own mesh in BP defaults
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    float CeilingThickness = 200.0f;
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    UStaticMesh* CeilingMesh = nullptr;  // can reuse BorderWallMesh if you want, or assign separately
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    UMaterialInterface* CeilingMaterial = nullptr;
+
+    UPROPERTY(EditAnywhere, Category = "Border")
+    bool bBorderTriggersCrash = false;   // toggle on/off, checked live at hit time
 
     // Seed used for editor preview and (optionally) runtime generation.
     // Change this to get a different terrain shape without pressing Play.
@@ -91,9 +131,12 @@ public:
 protected:
     virtual void OnConstruction(const FTransform& Transform) override;
     virtual void BeginPlay() override;
+	
+    UPROPERTY(EditAnywhere, Category = "Terrain")
+    TArray<UMaterialInterface*> TerrainMaterials;
 
-    UPROPERTY(EditAnywhere)
-    UMaterialInterface* Material;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+    int32 PreviewLevel = 6;
 
 public:
     virtual void Tick(float DeltaTime) override;
@@ -111,4 +154,16 @@ private:
     void CreateVertices();
     void CreateTriangles();
     void PlaceObjects(const FObjectPlacementConfig& Config); 
+    TArray<UStaticMeshComponent*> BorderWalls; // changed from TArray<UBoxComponent*>
+    void CreateBorderWalls();
+    void ClearBorderWalls();
+    bool IsWithinPlayableBounds(const FVector& LocalVertexPos, float ExtraPadding = 0.0f) const;
+    void CreateCeiling();
+    void UpdateTerrainMaterial(int32 Level);
+    UFUNCTION()
+    void OnBorderHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+        UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+
+    void ApplyLevelSettings(int32 Level);
 };

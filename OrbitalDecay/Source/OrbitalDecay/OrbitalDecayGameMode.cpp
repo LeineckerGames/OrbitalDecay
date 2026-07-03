@@ -23,6 +23,8 @@ void AOrbitalDecayGameMode::BeginPlay()
     //Load saved level so it persists across reloads
     UOrbitalSaveGame* SaveGame = GetOrCreateSaveGame();
     GlobalLevel = SaveGame->LoadCurrentLevel();
+    GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red,
+        FString::Printf(TEXT("GameMode BeginPlay: GlobalLevel=%d"), GlobalLevel));
 
     TArray<AActor*> FoundActors;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AReplayRecorder::StaticClass(), FoundActors);

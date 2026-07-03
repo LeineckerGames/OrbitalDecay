@@ -351,7 +351,7 @@ void ADiaMONDSQUARE::ApplyLevelSettings(int32 Level)
 		Scale                = 1000.0f;
 		ZMultiplier          = 1200.0f;
 		NoiseScale           = 0.2f;
-		BorderMargin         = 58000.0f; // walls at ~22000 UU from centre (HalfX 80000 - 58000)
+		BorderMargin         = 72000.0f; // walls at ±8000 UU from centre (10% playable of 160000 map)
 		bEnablePlanetCurvature = true;
 		PlanetRadius         = 500000.0f;
 		CurvatureEdgeFalloff = 0.7f;
@@ -362,7 +362,7 @@ void ADiaMONDSQUARE::ApplyLevelSettings(int32 Level)
 		Scale                = 1000.0f;
 		ZMultiplier          = 2500.0f; // taller than level 1
 		NoiseScale           = 0.25f;   // broad hills, not spikes
-		BorderMargin         = 58000.0f;
+		BorderMargin         = 72000.0f;
 		bEnablePlanetCurvature = true;
 		PlanetRadius         = 500000.0f;
 		CurvatureEdgeFalloff = 0.7f;
@@ -373,7 +373,7 @@ void ADiaMONDSQUARE::ApplyLevelSettings(int32 Level)
 		Scale                = 1000.0f;
 		ZMultiplier          = 4000.0f; // dramatic mountain-scale height
 		NoiseScale           = 0.22f;   // slightly broader features than level 6
-		BorderMargin         = 58000.0f;
+		BorderMargin         = 72000.0f;
 		bEnablePlanetCurvature = true;
 		PlanetRadius         = 500000.0f;
 		CurvatureEdgeFalloff = 0.7f;
@@ -384,7 +384,7 @@ void ADiaMONDSQUARE::ApplyLevelSettings(int32 Level)
 		Scale                = 1000.0f;
 		ZMultiplier          = 6000.0f; // very tall peaks
 		NoiseScale           = 0.2f;    // same frequency as level 1 — broad and imposing
-		BorderMargin         = 58000.0f;
+		BorderMargin         = 72000.0f;
 		bEnablePlanetCurvature = true;
 		PlanetRadius         = 500000.0f;
 		CurvatureEdgeFalloff = 0.7f;
@@ -395,7 +395,7 @@ void ADiaMONDSQUARE::ApplyLevelSettings(int32 Level)
 		Scale                = 1000.0f;
 		ZMultiplier          = 1200.0f;
 		NoiseScale           = 0.2f;
-		BorderMargin         = 58000.0f;
+		BorderMargin         = 72000.0f;
 		bEnablePlanetCurvature = true;
 		PlanetRadius         = 500000.0f;
 		CurvatureEdgeFalloff = 0.7f;

@@ -425,11 +425,17 @@ void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
 {
     // Guard: need a world, valid vertices, and at least one thing to place.
     if (!GetWorld() || Vertices.IsEmpty()) return;
-    if (!Config.Mesh && !Config.ActorClass) return;
+
+    // Use IsValid() instead of bare null checks — a stale Blueprint reference can be
+    // non-null yet point to garbage, and calling ANY method on it (including GetName()
+    // or IsChildOf) will crash before we even reach SpawnActor.
+    const bool bHasValidClass = IsValid(Config.ActorClass);
+    const bool bHasValidMesh  = IsValid(Config.Mesh);
+    if (!bHasValidMesh && !bHasValidClass) return;
 
     // Guard: ActorClass must be a real AActor subclass, not a stale/null CDO reference.
     // A bad class here causes a fatal CastChecked failure inside SpawnActor.
-    if (Config.ActorClass && !Config.ActorClass->IsChildOf(AActor::StaticClass()))
+    if (bHasValidClass && !Config.ActorClass->IsChildOf(AActor::StaticClass()))
     {
         UE_LOG(LogTemp, Warning, TEXT("PlaceObjects: ActorClass '%s' is not an AActor subclass — skipping."),
             *Config.ActorClass->GetName());
@@ -519,7 +525,7 @@ void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
             }
         }
         // Only use component path if no ActorClass is set
-        else if (Config.Mesh)
+        else if (bHasValidMesh)
         {
             UStaticMeshComponent* NewObj = NewObject<UStaticMeshComponent>(this);
             NewObj->SetStaticMesh(Config.Mesh);

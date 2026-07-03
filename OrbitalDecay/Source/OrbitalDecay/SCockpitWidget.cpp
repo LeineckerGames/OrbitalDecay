@@ -1244,14 +1244,22 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
 
     if (!MyOwnerHUD->bQuestionActive)
     {
-        FString Type = TEXT("");
-        if (InKeyEvent.GetKey() == EKeys::A) Type = "a";
-        else if (InKeyEvent.GetKey() == EKeys::S) Type = "d";
-        else if (InKeyEvent.GetKey() == EKeys::W) Type = "m";
-        else if (InKeyEvent.GetKey() == EKeys::D) Type = "s";
+        // Map each key to its movement action (independent of question type)
+        FString Action = TEXT("");
+        if      (InKeyEvent.GetKey() == EKeys::W) Action = TEXT("boost");
+        else if (InKeyEvent.GetKey() == EKeys::A) Action = TEXT("rotate_left");
+        else if (InKeyEvent.GetKey() == EKeys::S) Action = TEXT("fuel");
+        else if (InKeyEvent.GetKey() == EKeys::D) Action = TEXT("rotate_right");
 
-        if (!Type.IsEmpty())
+        if (!Action.IsEmpty())
         {
+            PendingAction = Action;
+
+            // Pick a completely random question type regardless of which key was pressed
+            static const TArray<FString> QuestionTypes = {
+                TEXT("a"), TEXT("s"), TEXT("m"), TEXT("d")
+            };
+            FString Type = QuestionTypes[FMath::RandRange(0, QuestionTypes.Num() - 1)];
             if (P) P->PlayKeyClickSound();
 
             AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
@@ -1356,14 +1364,15 @@ void SCockpitWidget::CheckAnswer()
         {
             P->PlayCorrectAnswerSound();
 
-            if (MyOwnerHUD->QuestionType == "d")
+            // Action is determined by which key was pressed, not the question type
+            if (PendingAction == TEXT("fuel"))
             {
                 P->AddFuel(MyOwnerHUD->FuelRewardAmount);
                 P->PlayFuelSound();
                 ResultText = FText::FromString(
                     FString::Printf(TEXT("CORRECT! +%.0f FUEL"), MyOwnerHUD->FuelRewardAmount));
             }
-            else if (MyOwnerHUD->QuestionType == "m")
+            else if (PendingAction == TEXT("boost"))
             {
                 if (P->Fuel <= 0.0f)
                 {
@@ -1377,18 +1386,19 @@ void SCockpitWidget::CheckAnswer()
                         TEXT("CORRECT! FORWARD BOOST!") : TEXT("CORRECT! BOOST!"));
                 }
             }
-            else if (MyOwnerHUD->QuestionType == "a")
+            else if (PendingAction == TEXT("rotate_left"))
             {
                 P->RotateLeft();
                 ResultText = FText::FromString(TEXT("CORRECT! ROTATING LEFT"));
                 ResultColor = FSlateColor(C_AccentAmber);
             }
-            else if (MyOwnerHUD->QuestionType == "s")
+            else if (PendingAction == TEXT("rotate_right"))
             {
                 P->RotateRight();
                 ResultText = FText::FromString(TEXT("CORRECT! ROTATING RIGHT"));
                 ResultColor = FSlateColor(C_AccentAmber);
             }
+            PendingAction = TEXT(""); // clear after use
         }
     }
     else

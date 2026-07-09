@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Sound/SoundWave.h"
 
 class SLevelCompleteWidget : public SCompoundWidget
 {
@@ -20,11 +21,16 @@ public:
     void Construct(const FArguments& InArgs);
 
 private:
-    UWorld* MyWorld          = nullptr;
-    float   CompletionTime   = 0.f;
-    float   AccuracyPercent  = 100.f;
-    int32   CurrentLevel     = 1;
-    FString PlayerName       = TEXT("");
+    UWorld*     MyWorld          = nullptr;
+    float       CompletionTime   = 0.f;
+    float       AccuracyPercent  = 100.f;
+    int32       CurrentLevel     = 1;
+    FString     PlayerName       = TEXT("");
+    USoundWave* ButtonClickSound = nullptr;
+    USoundWave* ButtonHoverSound = nullptr;
+
+    void PlayButtonSound();
+    void PlayHoverSound();
 
     TSharedPtr<SEditableText> NameInputBox;
     TSharedPtr<STextBlock>    SaveStatusText;

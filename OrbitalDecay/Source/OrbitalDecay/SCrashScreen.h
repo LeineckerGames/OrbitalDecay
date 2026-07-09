@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Sound/SoundWave.h"
 
 class ORBITALDECAY_API SCrashScreen : public SCompoundWidget
 {
@@ -16,8 +17,13 @@ public:
     void Construct(const FArguments& InArgs);
 
 private:
-    UWorld* MyWorld      = nullptr;
-    int32   CurrentLevel = 1;
+    UWorld*     MyWorld          = nullptr;
+    int32       CurrentLevel     = 1;
+    USoundWave* ButtonClickSound = nullptr;
+    USoundWave* ButtonHoverSound = nullptr;
+
+    void PlayButtonSound();
+    void PlayHoverSound();
 
     FReply OnRetryClicked();
     FReply OnMainMenuClicked();

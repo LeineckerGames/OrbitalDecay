@@ -1172,7 +1172,7 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
     if (!P || !P->bGameStarted)
     {
         // Allow pause key even during briefing
-        if (InKeyEvent.GetKey() == EKeys::P)
+        if (InKeyEvent.GetKey() == EKeys::Escape)
         {
             AMyHUD* HUD = Cast<AMyHUD>(MyOwnerHUD.Get());
             if (HUD)
@@ -1209,7 +1209,7 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
         return FReply::Handled();
     }
 
-    if (InKeyEvent.GetKey() == EKeys::P)
+    if (InKeyEvent.GetKey() == EKeys::Escape)
     {
         if (MyOwnerHUD.IsValid())
         {

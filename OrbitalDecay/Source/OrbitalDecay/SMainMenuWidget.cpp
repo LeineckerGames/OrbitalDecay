@@ -26,7 +26,8 @@ static const FLinearColor MM_SubColor   = FLinearColor(0.50f, 0.60f, 0.70f, 1.f)
 // ─── Helper: styled menu button ──────────────────────────────────
 static TSharedRef<SWidget> MakeMenuButton(
     const FString& Label,
-    FOnClicked OnClicked)
+    FOnClicked OnClicked,
+    FSimpleDelegate OnHovered = FSimpleDelegate())
 {
     return SNew(SBox)
         .WidthOverride(280.f)
@@ -37,6 +38,7 @@ static TSharedRef<SWidget> MakeMenuButton(
             .HAlign(HAlign_Center)
             .VAlign(VAlign_Center)
             .OnClicked(OnClicked)
+            .OnHovered(OnHovered)
             [
                 SNew(STextBlock)
                 .Text(FText::FromString(Label))
@@ -50,7 +52,7 @@ static TSharedRef<SWidget> MakeMenuButton(
 // ─── Helper: large green Play button ──────────────────────────────
 static const FLinearColor MM_PlayBg = FLinearColor(0.08f, 0.32f, 0.10f, 1.f);
 
-static TSharedRef<SWidget> MakePlayButton(FOnClicked OnClicked)
+static TSharedRef<SWidget> MakePlayButton(FOnClicked OnClicked, FSimpleDelegate OnHovered = FSimpleDelegate())
 {
     return SNew(SBox)
         .WidthOverride(320.f)
@@ -61,6 +63,7 @@ static TSharedRef<SWidget> MakePlayButton(FOnClicked OnClicked)
             .HAlign(HAlign_Center)
             .VAlign(VAlign_Center)
             .OnClicked(OnClicked)
+            .OnHovered(OnHovered)
             [
                 SNew(STextBlock)
                 .Text(FText::FromString(TEXT("PLAY")))
@@ -77,6 +80,7 @@ void SMainMenuWidget::Construct(const FArguments& InArgs)
     MyWorld = InArgs._OwnerWorld;
 
     ButtonClickSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/342200__christopherderp__videogame-menu-button-click.342200__christopherderp__videogame-menu-button-click"));
+    ButtonHoverSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/ButtonHover.ButtonHover"));
 
     ContentArea = SNew(SBox);
 
@@ -167,31 +171,36 @@ TSharedRef<SWidget> SMainMenuWidget::BuildHomePage()
             + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8, 0, 16)
             [
                 MakePlayButton(
-                    FOnClicked::CreateSP(this, &SMainMenuWidget::OnStartClicked))
+                    FOnClicked::CreateSP(this, &SMainMenuWidget::OnStartClicked),
+                    FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
             ]
 
             + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8)
             [
                 MakeMenuButton(TEXT("TUTORIAL"),
-                    FOnClicked::CreateSP(this, &SMainMenuWidget::OnTutorialClicked))
+                    FOnClicked::CreateSP(this, &SMainMenuWidget::OnTutorialClicked),
+                    FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
             ]
 
             + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8)
             [
                 MakeMenuButton(TEXT("HIGH SCORES"),
-                    FOnClicked::CreateSP(this, &SMainMenuWidget::OnHighScoresClicked))
+                    FOnClicked::CreateSP(this, &SMainMenuWidget::OnHighScoresClicked),
+                    FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
             ]
 
             + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8)
             [
                 MakeMenuButton(TEXT("CREDITS"),
-                    FOnClicked::CreateSP(this, &SMainMenuWidget::OnAboutClicked))
+                    FOnClicked::CreateSP(this, &SMainMenuWidget::OnAboutClicked),
+                    FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
             ]
 
             + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8)
             [
                 MakeMenuButton(TEXT("QUIT"),
-                    FOnClicked::CreateSP(this, &SMainMenuWidget::OnQuitClicked))
+                    FOnClicked::CreateSP(this, &SMainMenuWidget::OnQuitClicked),
+                    FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
             ]
         ];
 }
@@ -251,9 +260,11 @@ TSharedRef<SWidget> SMainMenuWidget::BuildTutorialPage()
                 .VAlign(VAlign_Center)
                 .OnClicked(FOnClicked::CreateLambda([this]() -> FReply
                 {
+                    PlayButtonSound();
                     NavigateTo(BuildHomePage());
                     return FReply::Handled();
                 }))
+                .OnHovered(FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
                 [
                     SNew(STextBlock)
                     .Text(FText::FromString(TEXT("← BACK")))
@@ -296,9 +307,11 @@ TSharedRef<SWidget> SMainMenuWidget::BuildAboutPage()
             MakeMenuButton(TEXT("BACK"),
                 FOnClicked::CreateLambda([this]() -> FReply
                 {
+                    PlayButtonSound();
                     NavigateTo(BuildHomePage());
                     return FReply::Handled();
-                }))
+                }),
+                FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
         ];
 }
 
@@ -451,5 +464,13 @@ void SMainMenuWidget::PlayButtonSound()
     if (ButtonClickSound && MyWorld)
     {
         UGameplayStatics::PlaySound2D(MyWorld, ButtonClickSound);
+    }
+}
+
+void SMainMenuWidget::PlayHoverSound()
+{
+    if (ButtonHoverSound && MyWorld)
+    {
+        UGameplayStatics::PlaySound2D(MyWorld, ButtonHoverSound, 0.5f);
     }
 }

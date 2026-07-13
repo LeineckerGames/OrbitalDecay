@@ -38,6 +38,9 @@ void SLevelCompleteWidget::Construct(const FArguments& InArgs)
     AccuracyPercent = InArgs._AccuracyPercent;
     CurrentLevel    = InArgs._CurrentLevel;
 
+    ButtonClickSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/342200__christopherderp__videogame-menu-button-click.342200__christopherderp__videogame-menu-button-click"));
+    ButtonHoverSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/ButtonHover.ButtonHover"));
+
     // Check if score qualifies for top 10
     UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
         UGameplayStatics::LoadGameFromSlot(
@@ -218,6 +221,7 @@ void SLevelCompleteWidget::Construct(const FArguments& InArgs)
                             .HAlign(HAlign_Center)
                             .VAlign(VAlign_Center)
                             .OnClicked(this, &SLevelCompleteWidget::OnSaveScoreClicked)
+                            .OnHovered(FSimpleDelegate::CreateSP(this, &SLevelCompleteWidget::PlayHoverSound))
                             [
                                 SNew(STextBlock)
                                 .Text(FText::FromString(TEXT("SAVE SCORE")))
@@ -265,6 +269,7 @@ void SLevelCompleteWidget::Construct(const FArguments& InArgs)
                             .HAlign(HAlign_Center)
                             .VAlign(VAlign_Center)
                             .OnClicked(this, &SLevelCompleteWidget::OnNextClicked)
+                            .OnHovered(FSimpleDelegate::CreateSP(this, &SLevelCompleteWidget::PlayHoverSound))
                             [
                                 SNew(STextBlock)
                                 .Text(FText::FromString(
@@ -280,8 +285,21 @@ void SLevelCompleteWidget::Construct(const FArguments& InArgs)
     ];
 }
 
+void SLevelCompleteWidget::PlayButtonSound()
+{
+    if (ButtonClickSound && MyWorld)
+        UGameplayStatics::PlaySound2D(MyWorld, ButtonClickSound);
+}
+
+void SLevelCompleteWidget::PlayHoverSound()
+{
+    if (ButtonHoverSound && MyWorld)
+        UGameplayStatics::PlaySound2D(MyWorld, ButtonHoverSound, 0.5f);
+}
+
 FReply SLevelCompleteWidget::OnSaveScoreClicked()
 {
+    PlayButtonSound();
     if (bScoreSaved) return FReply::Handled();
     if (!NameInputBox.IsValid()) return FReply::Handled();
 
@@ -341,47 +359,58 @@ FReply SLevelCompleteWidget::OnSaveScoreClicked()
 
 FReply SLevelCompleteWidget::OnNextClicked()
 {
-    if (GEngine && GEngine->GameViewport)
-        GEngine->GameViewport->RemoveAllViewportWidgets();
-
+    PlayButtonSound();
     if (!MyWorld) return FReply::Handled();
 
-    if (CurrentLevel >= 20)
-    {
-        // Final level — go to the Mission Completed screen instead
-        // of advancing GlobalLevel any further or reloading.
-        TSharedPtr<SMissionCompletedWidget> MissionWidget =
-            SNew(SMissionCompletedWidget).OwnerWorld(MyWorld);
+    // Unpause first — ShowLevelCompleteScreen pauses the game, and paused
+    // worlds don't tick timers, so the 0.2s delay would never fire otherwise.
+    APlayerController* PC = MyWorld->GetFirstPlayerController();
+    if (PC) PC->SetPause(false);
 
+    // Capture a shared ref so the widget stays alive until the timer fires,
+    // even after RemoveAllViewportWidgets() drops the viewport's reference.
+    TSharedRef<SLevelCompleteWidget> Self = SharedThis(this);
+    FTimerHandle TimerHandle;
+    MyWorld->GetTimerManager().SetTimer(TimerHandle, [this, Self]()
+    {
         if (GEngine && GEngine->GameViewport)
-        {
-            GEngine->GameViewport->AddViewportWidgetContent(
-                MissionWidget.ToSharedRef(), 10);
-        }
+            GEngine->GameViewport->RemoveAllViewportWidgets();
 
-        APlayerController* PC = MyWorld->GetFirstPlayerController();
-        if (PC)
-        {
-            PC->bShowMouseCursor = true;
-            FInputModeUIOnly InputMode;
-            PC->SetInputMode(InputMode);
-        }
-    }
-    else
-    {
-        // Normal case — advance to the next level.
-        // This is the only place GlobalLevel should ever be
-        // incremented+saved.
-        AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
-            MyWorld->GetAuthGameMode());
-        if (GM)
-        {
-            GM->TriggerLevelComplete();
-        }
+        if (!MyWorld) return;
 
-        UGameplayStatics::OpenLevel(MyWorld,
-            FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
-    }
+        if (CurrentLevel >= 20)
+        {
+            // Final level — go to the Mission Completed screen instead
+            // of advancing GlobalLevel any further or reloading.
+            TSharedPtr<SMissionCompletedWidget> MissionWidget =
+                SNew(SMissionCompletedWidget).OwnerWorld(MyWorld);
+
+            if (GEngine && GEngine->GameViewport)
+            {
+                GEngine->GameViewport->AddViewportWidgetContent(
+                    MissionWidget.ToSharedRef(), 10);
+            }
+
+            APlayerController* PC = MyWorld->GetFirstPlayerController();
+            if (PC)
+            {
+                PC->bShowMouseCursor = true;
+                FInputModeUIOnly InputMode;
+                PC->SetInputMode(InputMode);
+            }
+        }
+        else
+        {
+            // Normal case — advance to the next level.
+            AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
+                MyWorld->GetAuthGameMode());
+            if (GM)
+                GM->TriggerLevelComplete();
+
+            UGameplayStatics::OpenLevel(MyWorld,
+                FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
+        }
+    }, 0.2f, false);
 
     return FReply::Handled();
 }

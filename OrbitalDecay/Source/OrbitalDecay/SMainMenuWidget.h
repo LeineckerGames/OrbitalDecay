@@ -27,7 +27,9 @@ private:
     TSharedRef<SWidget> BuildLoadingPage();
 
     USoundWave* ButtonClickSound = nullptr;
+    USoundWave* ButtonHoverSound = nullptr;
     void PlayButtonSound();
+    void PlayHoverSound();
 
     // Timestamp set when the loading page is shown, used to animate the bar
     double LoadingStartTime = 0.0;

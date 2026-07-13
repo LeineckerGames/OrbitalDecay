@@ -115,17 +115,24 @@ void ALanderPawn::BeginPlay()
         MissionBriefingDuration = SelectedCharacter->BriefingDuration;
     }
 
+    // Capture a weak pointer so the lambda is safe to fire during level
+    // teardown — if the pawn is being destroyed, WeakThis.IsValid() returns
+    // false and we bail out before touching any members or components.
+    TWeakObjectPtr<ALanderPawn> WeakThis(this);
     FTimerHandle GameStartTimer;
-    GetWorldTimerManager().SetTimer(GameStartTimer, [this]()
+    GetWorldTimerManager().SetTimer(GameStartTimer, [WeakThis]()
         {
-            bGameStarted = true;
+            ALanderPawn* Self = WeakThis.Get();
+            if (!Self) return;
+
+            Self->bGameStarted = true;
             if (GEngine)
                 GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("GO!"));
 
-            if (ThrustAudioComponent && ThrustSound)
+            if (IsValid(Self->ThrustAudioComponent) && IsValid(Self->ThrustSound))
             {
-                ThrustAudioComponent->SetSound(ThrustSound);
-                ThrustAudioComponent->Play();
+                Self->ThrustAudioComponent->SetSound(Self->ThrustSound);
+                Self->ThrustAudioComponent->Play();
             }
 
         }, MissionBriefingDuration, false);

@@ -6,6 +6,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Kismet/GameplayStatics.h"
+#include "LoadingScreen.h"
 
 static const FLinearColor CS_Bg      = FLinearColor(0.00f, 0.00f, 0.00f, 0.80f);
 static const FLinearColor CS_Panel   = FLinearColor(0.06f, 0.04f, 0.04f, 1.f);
@@ -156,16 +157,11 @@ FReply SCrashScreen::OnRetryClicked()
     PlayButtonSound();
     if (MyWorld)
     {
-        TSharedRef<SCrashScreen> Self = SharedThis(this);
-        FTimerHandle TimerHandle;
-        MyWorld->GetTimerManager().SetTimer(TimerHandle, [this, Self]()
-        {
-            if (GEngine && GEngine->GameViewport)
-                GEngine->GameViewport->RemoveViewportWidgetContent(SharedThis(this));
-            if (MyWorld)
-                UGameplayStatics::OpenLevel(MyWorld,
-                    FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
-        }, 0.2f, false);
+        if (GEngine && GEngine->GameViewport)
+            GEngine->GameViewport->RemoveAllViewportWidgets();
+
+        ULoadingScreen::Show(MyWorld,
+            FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
     }
     return FReply::Handled();
 }

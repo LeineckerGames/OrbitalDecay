@@ -11,6 +11,7 @@
 #include "OrbitalSaveGame.h"
 #include "OrbitalDecayGameMode.h"
 #include "SMissionCompletedWidget.h"
+#include "LoadingScreen.h"
 
 static const FLinearColor LC_Bg       = FLinearColor(0.02f, 0.03f, 0.05f, 0.93f);
 static const FLinearColor LC_Panel    = FLinearColor(0.05f, 0.08f, 0.06f, 1.f);
@@ -405,9 +406,11 @@ FReply SLevelCompleteWidget::OnNextClicked()
             AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
                 MyWorld->GetAuthGameMode());
             if (GM)
+            {
                 GM->TriggerLevelComplete();
+            }
 
-            UGameplayStatics::OpenLevel(MyWorld,
+            ULoadingScreen::Show(MyWorld,
                 FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
         }
     }, 0.2f, false);

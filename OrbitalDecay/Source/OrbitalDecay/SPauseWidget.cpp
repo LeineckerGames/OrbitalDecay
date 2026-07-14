@@ -7,6 +7,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Kismet/GameplayStatics.h"
 #include "OrbitalSaveGame.h"
+#include "LoadingScreen.h"
 
 static const FLinearColor PW_Bg      = FLinearColor(0.02f, 0.03f, 0.05f, 0.92f);
 static const FLinearColor PW_Panel   = FLinearColor(0.05f, 0.07f, 0.10f, 1.f);
@@ -164,27 +165,8 @@ FReply SPauseWidget::OnRestartClicked()
     if (PC) PC->SetPause(false);
 
     if (MyWorld)
-    {
-        TSharedRef<SPauseWidget> Self = SharedThis(this);
-        FTimerHandle TimerHandle;
-        MyWorld->GetTimerManager().SetTimer(TimerHandle, [this, Self]()
-        {
-            if (GEngine && GEngine->GameViewport)
-                GEngine->GameViewport->RemoveAllViewportWidgets();
-
-            if (MyWorld)
-            {
-                UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
-                    UGameplayStatics::LoadGameFromSlot(
-                        UOrbitalSaveGame::SaveSlotName, 0));
-                if (SaveGame)
-                    SaveGame->ResetToLevelOne();
-
-                UGameplayStatics::OpenLevel(MyWorld,
-                    FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
-            }
-        }, 0.2f, false);
-    }
+        ULoadingScreen::Show(MyWorld,
+            FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
 
     return FReply::Handled();
 }

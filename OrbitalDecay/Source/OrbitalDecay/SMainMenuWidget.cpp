@@ -7,15 +7,11 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Notifications/SProgressBar.h"
-#include "Widgets/Input/SSlider.h"
 #include "Misc/App.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundWave.h"
-#include "Components/AudioComponent.h"
-#include "AudioDevice.h"
 #include "OrbitalSaveGame.h"
-#include "OrbitalSettingsSave.h"
+#include "LoadingScreen.h"
 
 // ─── Colors ───────────────────────────────────────────────────────
 static const FLinearColor MM_Bg         = FLinearColor(0.02f, 0.03f, 0.05f, 1.f);
@@ -480,61 +476,7 @@ TSharedRef<SWidget> SMainMenuWidget::BuildAboutPage()
         ];
 }
 
-// ─── Loading Page ────────────────────────────────────────────────
-TSharedRef<SWidget> SMainMenuWidget::BuildLoadingPage()
-{
-    LoadingStartTime = FPlatformTime::Seconds();
 
-    return SNew(SBorder)
-        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-        .BorderBackgroundColor(FLinearColor::Black)
-        .HAlign(HAlign_Fill)
-        .VAlign(VAlign_Fill)
-        [
-            SNew(SVerticalBox)
-
-            // Push content to vertical center
-            + SVerticalBox::Slot()
-            .FillHeight(1.0f)
-
-            + SVerticalBox::Slot()
-            .AutoHeight()
-            .HAlign(HAlign_Center)
-            .Padding(0.0f, 0.0f, 0.0f, 12.0f)
-            [
-                SNew(STextBlock)
-                .Text(FText::FromString(TEXT("Loading...")))
-                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 28))
-                .ColorAndOpacity(FLinearColor::White)
-                .Justification(ETextJustify::Center)
-            ]
-
-            + SVerticalBox::Slot()
-            .AutoHeight()
-            .HAlign(HAlign_Center)
-            [
-                SNew(SBox)
-                .WidthOverride(400.0f)
-                .HeightOverride(18.0f)
-                [
-                    SNew(SProgressBar)
-                    // Fill green to match the main menu title colour
-                    .FillColorAndOpacity(MM_TitleColor)
-                    // Animate from 0 → 90% over 60s. Caps at 90 so the bar
-                    // never falsely "completes" — it disappears when the level loads.
-                    .Percent(MakeAttributeLambda([this]() -> TOptional<float>
-                    {
-                        float Elapsed = (float)(FPlatformTime::Seconds() - LoadingStartTime);
-                        return TOptional<float>(FMath::Min(Elapsed / 5.0f * 0.9f, 0.9f));
-                    }))
-                ]
-            ]
-
-            // Bottom padding
-            + SVerticalBox::Slot()
-            .FillHeight(1.0f)
-        ];
-}
 
 // ─── Button Handlers ─────────────────────────────────────────────
 FReply SMainMenuWidget::OnStartClicked()
@@ -559,23 +501,7 @@ FReply SMainMenuWidget::OnStartClicked()
             SaveGame, UOrbitalSaveGame::SaveSlotName, 0);
     }
 
-    // Show loading screen immediately so the player sees feedback
-    // while the level streams in. The widget lives in the main menu
-    // world and is destroyed automatically when OpenLevel tears it down.
-    NavigateTo(BuildLoadingPage());
-
-    if (MyWorld)
-    {
-        // Wait for the bar to fill before opening the level.
-        // OpenLevel blocks the game thread, so the bar must finish
-        // animating before the call — keep this in sync with the
-        // Elapsed / X.Xf divisor in BuildLoadingPage.
-        FTimerHandle LoadLevelTimer;
-        MyWorld->GetTimerManager().SetTimer(LoadLevelTimer, [this]()
-            {
-                UGameplayStatics::OpenLevel(MyWorld, FName("test"));
-            }, 5.0f, false);
-    }
+    ULoadingScreen::Show(MyWorld, FName("test"));
 
     return FReply::Handled();
 }

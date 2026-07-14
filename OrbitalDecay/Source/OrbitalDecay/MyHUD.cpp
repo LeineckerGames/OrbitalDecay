@@ -30,6 +30,13 @@ AMyHUD::AMyHUD()
 void AMyHUD::BeginPlay()
 {
     Super::BeginPlay();
+
+    // Clear any widgets that persisted from the previous world
+    if (GEngine && GEngine->GameViewport)
+    {
+        GEngine->GameViewport->RemoveAllViewportWidgets();
+    }
+
     MathEngine = NewObject<UMathGenerator>(this);
     CurrentQuestionText = TEXT("");
     CurrentCorrectAnswer = -1;

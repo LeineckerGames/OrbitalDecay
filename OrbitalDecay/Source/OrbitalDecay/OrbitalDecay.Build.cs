@@ -14,7 +14,8 @@ public class OrbitalDecay : ModuleRules
             "InputCore",
             "EnhancedInput",
             "ProceduralMeshComponent",
-            "UMG"
+            "UMG",
+            "AudioMixer"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]

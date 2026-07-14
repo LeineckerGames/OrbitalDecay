@@ -8,10 +8,14 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Notifications/SProgressBar.h"
+#include "Widgets/Input/SSlider.h"
 #include "Misc/App.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundWave.h"
+#include "Components/AudioComponent.h"
+#include "AudioDevice.h"
 #include "OrbitalSaveGame.h"
+#include "OrbitalSettingsSave.h"
 
 // ─── Colors ───────────────────────────────────────────────────────
 static const FLinearColor MM_Bg         = FLinearColor(0.02f, 0.03f, 0.05f, 1.f);
@@ -79,8 +83,27 @@ void SMainMenuWidget::Construct(const FArguments& InArgs)
 {
     MyWorld = InArgs._OwnerWorld;
 
+    // Load persisted settings so sliders remember their last values
+    UOrbitalSettingsSave* Settings = Cast<UOrbitalSettingsSave>(
+        UGameplayStatics::LoadGameFromSlot(UOrbitalSettingsSave::SaveSlotName, 0));
+    if (Settings)
+    {
+        MusicVolume     = Settings->MusicVolume;
+        GameAudioVolume = Settings->GameAudioVolume;
+    }
+
     ButtonClickSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/342200__christopherderp__videogame-menu-button-click.342200__christopherderp__videogame-menu-button-click"));
     ButtonHoverSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/ButtonHover.ButtonHover"));
+    MainMenuMusic    = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/mainmenumusic.mainmenumusic"));
+
+    if (MainMenuMusic && MyWorld)
+    {
+        // SpawnSound2D returns the audio component so we can adjust volume live
+        // from the settings slider. bAutoDestroy=false keeps it alive until the
+        // world tears down when OpenLevel is called.
+        MusicComponent = UGameplayStatics::SpawnSound2D(
+            MyWorld, MainMenuMusic, MusicVolume, 1.f, 0.f, nullptr, false, false);
+    }
 
     ContentArea = SNew(SBox);
 
@@ -184,6 +207,13 @@ TSharedRef<SWidget> SMainMenuWidget::BuildHomePage()
 
             + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8)
             [
+                MakeMenuButton(TEXT("SETTINGS"),
+                    FOnClicked::CreateSP(this, &SMainMenuWidget::OnSettingsClicked),
+                    FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
+            ]
+
+            + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8)
+            [
                 MakeMenuButton(TEXT("HIGH SCORES"),
                     FOnClicked::CreateSP(this, &SMainMenuWidget::OnHighScoresClicked),
                     FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
@@ -270,6 +300,141 @@ TSharedRef<SWidget> SMainMenuWidget::BuildTutorialPage()
                     .Text(FText::FromString(TEXT("← BACK")))
                     .Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
                     .ColorAndOpacity(MM_TextColor)
+                ]
+            ]
+        ];
+}
+
+// ─── Settings Page ───────────────────────────────────────────────
+TSharedRef<SWidget> SMainMenuWidget::BuildSettingsPage()
+{
+    // Helper: one labelled slider row
+    auto MakeSliderRow = [](const FString& Label, float InitialValue, TFunction<void(float)> OnChanged)
+    {
+        return SNew(SVerticalBox)
+
+            // Label
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            .Padding(0.f, 0.f, 0.f, 8.f)
+            [
+                SNew(STextBlock)
+                .Text(FText::FromString(Label))
+                .Font(FCoreStyle::GetDefaultFontStyle("Regular", 15))
+                .ColorAndOpacity(FLinearColor(0.75f, 0.82f, 0.95f, 1.f))
+            ]
+
+            // Slider
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(SSlider)
+                .Value(InitialValue)
+                .SliderBarColor(FLinearColor(0.12f, 0.16f, 0.22f, 1.f))
+                .SliderHandleColor(FLinearColor(0.20f, 1.00f, 0.30f, 1.f))
+                .OnValueChanged_Lambda(MoveTemp(OnChanged))
+            ];
+    };
+
+    return SNew(SOverlay)
+
+        // Back button — bottom left
+        + SOverlay::Slot()
+        .HAlign(HAlign_Left)
+        .VAlign(VAlign_Bottom)
+        .Padding(30.f)
+        [
+            SNew(SBox)
+            .WidthOverride(120.f)
+            .HeightOverride(44.f)
+            [
+                SNew(SButton)
+                .ButtonColorAndOpacity(MM_BtnBg)
+                .HAlign(HAlign_Center)
+                .VAlign(VAlign_Center)
+                .OnClicked(FOnClicked::CreateLambda([this]() -> FReply
+                {
+                    PlayButtonSound();
+                    NavigateTo(BuildHomePage());
+                    return FReply::Handled();
+                }))
+                .OnHovered(FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("← BACK")))
+                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
+                    .ColorAndOpacity(MM_TextColor)
+                ]
+            ]
+        ]
+
+        // Settings panel — top-aligned, horizontally centered
+        + SOverlay::Slot()
+        .HAlign(HAlign_Center)
+        .VAlign(VAlign_Top)
+        .Padding(0.f, 50.f, 0.f, 0.f)
+        [
+            SNew(SBox)
+            .WidthOverride(500.f)
+            [
+                SNew(SVerticalBox)
+
+                // Title
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .HAlign(HAlign_Center)
+                .Padding(0.f, 0.f, 0.f, 24.f)
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("SETTINGS")))
+                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 42))
+                    .ColorAndOpacity(MM_TitleColor)
+                    .Justification(ETextJustify::Center)
+                ]
+
+                // Dark settings box — add new settings as new SVerticalBox::Slots below
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                [
+                    SNew(SBorder)
+                    .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                    .BorderBackgroundColor(FLinearColor(0.04f, 0.05f, 0.08f, 0.95f))
+                    .Padding(FMargin(36.f, 28.f))
+                    [
+                        SNew(SVerticalBox)
+
+                        // Music Volume
+                        + SVerticalBox::Slot()
+                        .AutoHeight()
+                        .Padding(0.f, 0.f, 0.f, 28.f)
+                        [
+                            MakeSliderRow(TEXT("Music Volume"), MusicVolume,
+                                [this](float Value)
+                                {
+                                    MusicVolume = Value;
+                                    if (MusicComponent)
+                                        MusicComponent->SetVolumeMultiplier(Value);
+                                    SaveSettings();
+                                })
+                        ]
+
+                        // Game Audio Volume
+                        + SVerticalBox::Slot()
+                        .AutoHeight()
+                        [
+                            MakeSliderRow(TEXT("Game Audio"), GameAudioVolume,
+                                [this](float Value)
+                                {
+                                    GameAudioVolume = Value;
+                                    FAudioDeviceHandle Dev = GEngine ? GEngine->GetMainAudioDevice() : FAudioDeviceHandle();
+                                    if (Dev.IsValid())
+                                        Dev->SetTransientPrimaryVolume(Value);
+                                    SaveSettings();
+                                })
+                        ]
+
+                        // ── Add new settings below this line ──
+                    ]
                 ]
             ]
         ];
@@ -422,6 +587,13 @@ FReply SMainMenuWidget::OnTutorialClicked()
     return FReply::Handled();
 }
 
+FReply SMainMenuWidget::OnSettingsClicked()
+{
+    PlayButtonSound();
+    NavigateTo(BuildSettingsPage());
+    return FReply::Handled();
+}
+
 FReply SMainMenuWidget::OnHighScoresClicked()
 {
     PlayButtonSound();
@@ -472,5 +644,20 @@ void SMainMenuWidget::PlayHoverSound()
     if (ButtonHoverSound && MyWorld)
     {
         UGameplayStatics::PlaySound2D(MyWorld, ButtonHoverSound, 0.5f);
+    }
+}
+
+void SMainMenuWidget::SaveSettings() const
+{
+    UOrbitalSettingsSave* Settings = Cast<UOrbitalSettingsSave>(
+        UGameplayStatics::LoadGameFromSlot(UOrbitalSettingsSave::SaveSlotName, 0));
+    if (!Settings)
+        Settings = Cast<UOrbitalSettingsSave>(
+            UGameplayStatics::CreateSaveGameObject(UOrbitalSettingsSave::StaticClass()));
+    if (Settings)
+    {
+        Settings->MusicVolume     = MusicVolume;
+        Settings->GameAudioVolume = GameAudioVolume;
+        UGameplayStatics::SaveGameToSlot(Settings, UOrbitalSettingsSave::SaveSlotName, 0);
     }
 }

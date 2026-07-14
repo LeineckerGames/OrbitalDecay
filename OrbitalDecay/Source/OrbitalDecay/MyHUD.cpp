@@ -12,6 +12,9 @@
 #include "SLevelCompleteWidget.h"
 #include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
+#include "AudioDevice.h"
+#include "OrbitalSettingsSave.h"
+#include "Kismet/GameplayStatics.h"
 
 AMyHUD::AMyHUD()
 {
@@ -31,6 +34,16 @@ void AMyHUD::BeginPlay()
     CurrentQuestionText = TEXT("");
     CurrentCorrectAnswer = -1;
     bQuestionActive = false;
+
+    // Apply saved game audio volume so the setting carries over from the main menu
+    UOrbitalSettingsSave* Settings = Cast<UOrbitalSettingsSave>(
+        UGameplayStatics::LoadGameFromSlot(UOrbitalSettingsSave::SaveSlotName, 0));
+    if (Settings && GEngine)
+    {
+        FAudioDeviceHandle Dev = GEngine->GetMainAudioDevice();
+        if (Dev.IsValid())
+            Dev->SetTransientPrimaryVolume(Settings->GameAudioVolume);
+    }
 
     if (GEngine && GEngine->GameViewport)
     {

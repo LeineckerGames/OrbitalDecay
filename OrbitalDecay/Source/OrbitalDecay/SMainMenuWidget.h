@@ -24,15 +24,13 @@ private:
     TSharedRef<SWidget> BuildHighScoresPage();
     TSharedRef<SWidget> BuildTutorialPage();
     TSharedRef<SWidget> BuildAboutPage();
-    TSharedRef<SWidget> BuildLoadingPage();
 
     USoundWave* ButtonClickSound = nullptr;
     USoundWave* ButtonHoverSound = nullptr;
     void PlayButtonSound();
     void PlayHoverSound();
 
-    // Timestamp set when the loading page is shown, used to animate the bar
-    double LoadingStartTime = 0.0;
+
 
     // Navigation
     void NavigateTo(TSharedRef<SWidget> NewPage);

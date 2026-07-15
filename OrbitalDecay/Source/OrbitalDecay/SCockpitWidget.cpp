@@ -626,7 +626,15 @@ TSharedRef<SWidget> SCockpitWidget::BuildFuelGauge()
                                                 if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
                                                 {
                                                     ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                                                    if (P) return (P->Fuel / P->MaxFuel) <= 0.20f ? C_FuelLow : C_FuelFull;
+                                                    if (P)
+                                                    {
+                                                        if ((P->Fuel / P->MaxFuel) <= 0.20f)
+                                                        {
+                                                            float T = (float)FSlateApplication::Get().GetCurrentTime();
+                                                            return FMath::Fmod(T, 0.5f) < 0.25f ? C_FuelLow : C_FuelFull;
+                                                        }
+                                                        return C_FuelFull;
+                                                    }
                                                 }
                                                 return C_FuelFull;
                                             })
@@ -821,14 +829,20 @@ TSharedRef<SWidget> SCockpitWidget::BuildComputerDisplay()
                         + SVerticalBox::Slot().FillHeight(1.f).VAlign(VAlign_Center).HAlign(HAlign_Center)
                         [
                             SNew(STextBlock)
-                                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 32))
+                                .Font_Lambda([this]() -> FSlateFontInfo
+                                    {
+                                        bool bIdle = !MyOwnerHUD.IsValid() || MyOwnerHUD->CurrentQuestionText.IsEmpty();
+                                        return FCoreStyle::GetDefaultFontStyle("Bold", bIdle ? 18 : 32);
+                                    })
                                 .ColorAndOpacity(C_DisplayText)
+                                .Justification(ETextJustify::Center)
                                 .Text_Lambda([this]() -> FText
                                     {
                                         if (MyOwnerHUD.IsValid())
                                         {
                                             FString Q = MyOwnerHUD->CurrentQuestionText;
-                                            if (Q.IsEmpty()) return FText::FromString(TEXT("PRESS W A S D"));
+                                            if (Q.IsEmpty()) return FText::FromString(
+                                                TEXT("W: Thrust   A: Left Rotate   D: Right Rotate   S: Add Fuel"));
                                             return FText::FromString(Q);
                                         }
                                         return FText::FromString(TEXT("NO HUD"));

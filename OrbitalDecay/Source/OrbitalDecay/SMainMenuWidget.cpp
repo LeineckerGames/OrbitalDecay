@@ -14,7 +14,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundWave.h"
 #include "Components/AudioComponent.h"
-#include "AudioDevice.h"
+#include "Sound/SoundMix.h"
+#include "Sound/SoundClass.h"
 #include "OrbitalSaveGame.h"
 #include "OrbitalSettingsSave.h"
 #include "LoadingScreen.h"
@@ -447,10 +448,14 @@ TSharedRef<SWidget> SMainMenuWidget::BuildSettingsPage()
                                 [this](float Value)
                                 {
                                     GameAudioVolume = Value;
-                                    FAudioDeviceHandle Dev = GEngine ? GEngine->GetMainAudioDevice() : FAudioDeviceHandle();
-                                    if (Dev.IsValid())
-                                        Dev->SetTransientPrimaryVolume(Value);
                                     SaveSettings();
+                                    USoundMix*   Mix  = LoadObject<USoundMix>  (nullptr, TEXT("/Game/Sounds/SM_GameMix.SM_GameMix"));
+                                    USoundClass* Class = LoadObject<USoundClass>(nullptr, TEXT("/Game/Sounds/SC_GameAudio.SC_GameAudio"));
+                                    if (Mix && Class && MyWorld)
+                                    {
+                                        UGameplayStatics::PushSoundMixModifier(MyWorld, Mix);
+                                        UGameplayStatics::SetSoundMixClassOverride(MyWorld, Mix, Class, Value, 1.f, 0.f, true);
+                                    }
                                 })
                         ]
 

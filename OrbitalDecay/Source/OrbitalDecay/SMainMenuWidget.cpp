@@ -7,6 +7,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Input/SSlider.h"
 #include "Misc/App.h"
@@ -27,6 +28,24 @@ static const FLinearColor MM_BtnHover   = FLinearColor(0.15f, 0.22f, 0.32f, 1.f)
 static const FLinearColor MM_TitleColor = FLinearColor(0.20f, 1.00f, 0.30f, 1.f);
 static const FLinearColor MM_TextColor  = FLinearColor(0.85f, 0.90f, 1.00f, 1.f);
 static const FLinearColor MM_SubColor   = FLinearColor(0.50f, 0.60f, 0.70f, 1.f);
+
+// ─── Main menu background brush (loaded once, reused) ─────────────
+static FSlateBrush* GetMainMenuBackgroundBrush()
+{
+    static FSlateBrush* Brush = nullptr;
+    if (!Brush)
+    {
+        UTexture2D* BgTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/images/loadingscreen"));
+        Brush = new FSlateBrush();
+        if (BgTex)
+        {
+            Brush->SetResourceObject(BgTex);
+            Brush->ImageSize = FVector2D(BgTex->GetSizeX(), BgTex->GetSizeY());
+            Brush->DrawAs = ESlateBrushDrawType::Image;
+        }
+    }
+    return Brush;
+}
 
 // ─── Helper: styled menu button ──────────────────────────────────
 static TSharedRef<SWidget> MakeMenuButton(
@@ -121,7 +140,8 @@ void SMainMenuWidget::Construct(const FArguments& InArgs)
             .HAlign(HAlign_Fill)
             .VAlign(VAlign_Fill)
             [
-                SNew(SSpacer)
+                SNew(SImage)
+                .Image(GetMainMenuBackgroundBrush())
             ]
 
             // Content area - starts with home page

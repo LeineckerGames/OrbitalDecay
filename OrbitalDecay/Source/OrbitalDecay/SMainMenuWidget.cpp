@@ -7,10 +7,15 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Notifications/SProgressBar.h"
+#include "Widgets/Input/SSlider.h"
 #include "Misc/App.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundWave.h"
+#include "Components/AudioComponent.h"
+#include "AudioDevice.h"
 #include "OrbitalSaveGame.h"
+#include "OrbitalSettingsSave.h"
 #include "LoadingScreen.h"
 
 // ─── Colors ───────────────────────────────────────────────────────

@@ -27,10 +27,14 @@ private:
     TSharedRef<SWidget> BuildSettingsPage();
     TSharedRef<SWidget> BuildAboutPage();
 
-    USoundWave*     ButtonClickSound = nullptr;
-    USoundWave*     ButtonHoverSound = nullptr;
-    USoundWave*     MainMenuMusic    = nullptr;
-    UAudioComponent* MusicComponent  = nullptr;
+    USoundWave*      ButtonClickSound = nullptr;
+    USoundWave*      ButtonHoverSound = nullptr;
+    USoundWave*      MainMenuMusic    = nullptr;
+    UAudioComponent* MusicComponent   = nullptr;
+
+    // Stored as a member so it is rebuilt fresh on every Construct(),
+    // preventing the stale-pointer bug that occurs after level transitions.
+    FSlateBrush BackgroundBrush;
 
     float MusicVolume     = 0.7f;
     float GameAudioVolume = 1.0f;

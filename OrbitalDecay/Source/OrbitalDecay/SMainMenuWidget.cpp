@@ -1,4 +1,6 @@
 #include "SMainMenuWidget.h"
+#include "OrbitalMenuAssetHolder.h"
+#include "EngineUtils.h"
 #include "SHighScoreWidget.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/SBoxPanel.h"
@@ -30,23 +32,6 @@ static const FLinearColor MM_TitleColor = FLinearColor(0.20f, 1.00f, 0.30f, 1.f)
 static const FLinearColor MM_TextColor  = FLinearColor(0.85f, 0.90f, 1.00f, 1.f);
 static const FLinearColor MM_SubColor   = FLinearColor(0.50f, 0.60f, 0.70f, 1.f);
 
-// ─── Main menu background brush (loaded once, reused) ─────────────
-static FSlateBrush* GetMainMenuBackgroundBrush()
-{
-    static FSlateBrush* Brush = nullptr;
-    if (!Brush)
-    {
-        UTexture2D* BgTex = LoadObject<UTexture2D>(nullptr, TEXT("/Game/images/loadingscreen"));
-        Brush = new FSlateBrush();
-        if (BgTex)
-        {
-            Brush->SetResourceObject(BgTex);
-            Brush->ImageSize = FVector2D(BgTex->GetSizeX(), BgTex->GetSizeY());
-            Brush->DrawAs = ESlateBrushDrawType::Image;
-        }
-    }
-    return Brush;
-}
 
 // ─── Helper: styled menu button ──────────────────────────────────
 static TSharedRef<SWidget> MakeMenuButton(
@@ -113,9 +98,42 @@ void SMainMenuWidget::Construct(const FArguments& InArgs)
         GameAudioVolume = Settings->GameAudioVolume;
     }
 
-    ButtonClickSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/342200__christopherderp__videogame-menu-button-click.342200__christopherderp__videogame-menu-button-click"));
-    ButtonHoverSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/ButtonHover.ButtonHover"));
-    MainMenuMusic    = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/mainmenumusic.mainmenumusic"));
+    // Prefer assets from the level-placed holder (guaranteed cooked in packaged
+    // builds).  Fall back to LoadObject so the editor still works without it.
+    AOrbitalMenuAssetHolder* Holder = nullptr;
+    if (MyWorld)
+    {
+        for (TActorIterator<AOrbitalMenuAssetHolder> It(MyWorld); It; ++It)
+        {
+            Holder = *It;
+            break;
+        }
+    }
+
+    ButtonClickSound = Holder && Holder->ButtonClickSound
+        ? Holder->ButtonClickSound
+        : LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/342200__christopherderp__videogame-menu-button-click.342200__christopherderp__videogame-menu-button-click"));
+    ButtonHoverSound = Holder && Holder->ButtonHoverSound
+        ? Holder->ButtonHoverSound
+        : LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/ButtonHover.ButtonHover"));
+    MainMenuMusic = Holder && Holder->MainMenuMusic
+        ? Holder->MainMenuMusic
+        : LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/mainmenumusic.mainmenumusic"));
+
+    // Build background brush fresh every Construct so it is never stale after
+    // a level transition (the old static-pointer approach let the UTexture2D
+    // get garbage-collected while the brush pointer remained non-null).
+    {
+        UTexture2D* BgTex = Holder && Holder->BackgroundTexture
+            ? Holder->BackgroundTexture
+            : LoadObject<UTexture2D>(nullptr, TEXT("/Game/images/loadingscreen"));
+        if (BgTex)
+        {
+            BackgroundBrush.SetResourceObject(BgTex);
+            BackgroundBrush.ImageSize = FVector2D(BgTex->GetSizeX(), BgTex->GetSizeY());
+            BackgroundBrush.DrawAs = ESlateBrushDrawType::Image;
+        }
+    }
 
     if (MainMenuMusic && MyWorld)
     {
@@ -154,7 +172,7 @@ void SMainMenuWidget::Construct(const FArguments& InArgs)
             .VAlign(VAlign_Fill)
             [
                 SNew(SImage)
-                .Image(GetMainMenuBackgroundBrush())
+                .Image(&BackgroundBrush)
             ]
 
             // Content area - starts with home page

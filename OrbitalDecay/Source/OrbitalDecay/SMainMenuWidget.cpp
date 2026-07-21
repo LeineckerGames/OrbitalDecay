@@ -21,6 +21,7 @@
 #include "OrbitalSaveGame.h"
 #include "OrbitalSettingsSave.h"
 #include "LoadingScreen.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
 
 // ─── Colors ───────────────────────────────────────────────────────
 static const FLinearColor MM_Bg         = FLinearColor(0.02f, 0.03f, 0.05f, 1.f);
@@ -278,6 +279,15 @@ TSharedRef<SWidget> SMainMenuWidget::BuildHomePage()
                     FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
             ]
 
+            // ── DEMO ONLY — remove this entire slot when demo is over ──
+            + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8)
+            [
+                MakeMenuButton(TEXT("DEMO LEVELS"),
+                    FOnClicked::CreateSP(this, &SMainMenuWidget::OnDemoLevelsClicked),
+                    FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
+            ]
+            // ── END DEMO ──
+
             + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8)
             [
                 MakeMenuButton(TEXT("QUIT"),
@@ -287,6 +297,124 @@ TSharedRef<SWidget> SMainMenuWidget::BuildHomePage()
         ];
 }
 
+// ══════════════════════════════════════════════════════════════════
+// DEMO ONLY — remove this entire function when demo is over
+// ══════════════════════════════════════════════════════════════════
+TSharedRef<SWidget> SMainMenuWidget::BuildDemoLevelSelectPage()
+{
+    TSharedRef<SUniformGridPanel> Grid = SNew(SUniformGridPanel)
+        .SlotPadding(FMargin(6.f));
+
+    for (int32 i = 1; i <= 20; ++i)
+    {
+        int32 Row = (i - 1) / 5;
+        int32 Col = (i - 1) % 5;
+
+        Grid->AddSlot(Col, Row)
+        [
+            SNew(SBox)
+            .WidthOverride(90.f)
+            .HeightOverride(70.f)
+            [
+                SNew(SButton)
+                .ButtonColorAndOpacity(FLinearColor(0.08f, 0.12f, 0.18f, 1.f))
+                .HAlign(HAlign_Center)
+                .VAlign(VAlign_Center)
+                .OnClicked_Lambda([this, i]() -> FReply
+                {
+                    PlayButtonSound();
+
+                    // Write selected level to save file so GameMode
+                    // loads the correct level on BeginPlay
+                    UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
+                        UGameplayStatics::LoadGameFromSlot(
+                            UOrbitalSaveGame::SaveSlotName, 0));
+                    if (!SaveGame)
+                        SaveGame = Cast<UOrbitalSaveGame>(
+                            UGameplayStatics::CreateSaveGameObject(
+                                UOrbitalSaveGame::StaticClass()));
+
+                    if (SaveGame)
+                    {
+                        SaveGame->SaveCurrentLevel(i);
+                        UGameplayStatics::SaveGameToSlot(
+                            SaveGame, UOrbitalSaveGame::SaveSlotName, 0);
+                    }
+
+                    ULoadingScreen::Show(MyWorld, FName("test"));
+                    return FReply::Handled();
+                })
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(FString::FromInt(i)))
+                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 22))
+                    .ColorAndOpacity(FLinearColor(0.85f, 0.90f, 1.00f, 1.f))
+                    .Justification(ETextJustify::Center)
+                ]
+            ]
+        ];
+    }
+
+    return SNew(SBorder)
+        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+        .BorderBackgroundColor(FLinearColor(0.02f, 0.03f, 0.05f, 1.f))
+        .Padding(40.f)
+        [
+            SNew(SVerticalBox)
+
+            // Title
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            .HAlign(HAlign_Center)
+            .Padding(0, 0, 0, 24)
+            [
+                SNew(STextBlock)
+                .Text(FText::FromString(TEXT("DEMO — SELECT LEVEL")))
+                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 36))
+                .ColorAndOpacity(FLinearColor(0.20f, 1.00f, 0.30f, 1.f))
+                .Justification(ETextJustify::Center)
+            ]
+
+            // Level grid
+            + SVerticalBox::Slot()
+            .FillHeight(1.f)
+            .HAlign(HAlign_Center)
+            [
+                Grid
+            ]
+
+            // Back button
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            .HAlign(HAlign_Left)
+            .Padding(0, 24, 0, 0)
+            [
+                SNew(SBox)
+                .WidthOverride(120.f)
+                .HeightOverride(44.f)
+                [
+                    SNew(SButton)
+                    .ButtonColorAndOpacity(FLinearColor(0.08f, 0.12f, 0.18f, 1.f))
+                    .HAlign(HAlign_Center)
+                    .VAlign(VAlign_Center)
+                    .OnClicked_Lambda([this]() -> FReply
+                    {
+                        NavigateTo(BuildHomePage());
+                        return FReply::Handled();
+                    })
+                    [
+                        SNew(STextBlock)
+                        .Text(FText::FromString(TEXT("← BACK")))
+                        .Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
+                        .ColorAndOpacity(FLinearColor(0.85f, 0.90f, 1.00f, 1.f))
+                    ]
+                ]
+            ]
+        ];
+}
+// ══════════════════════════════════════════════════════════════════
+// END DEMO
+// ══════════════════════════════════════════════════════════════════
 
 
 // ─── High Scores Page ────────────────────────────────────────────
@@ -597,6 +725,14 @@ FReply SMainMenuWidget::OnAboutClicked()
 {
     PlayButtonSound();
     NavigateTo(BuildAboutPage());
+    return FReply::Handled();
+}
+
+// ── DEMO ONLY — remove this function when demo is over ──
+FReply SMainMenuWidget::OnDemoLevelsClicked()
+{
+    PlayButtonSound();
+    NavigateTo(BuildDemoLevelSelectPage());
     return FReply::Handled();
 }
 

@@ -26,6 +26,8 @@ private:
     TSharedRef<SWidget> BuildTutorialPage();
     TSharedRef<SWidget> BuildSettingsPage();
     TSharedRef<SWidget> BuildAboutPage();
+    // ── DEMO ONLY — remove this line when demo is over ──
+    TSharedRef<SWidget> BuildDemoLevelSelectPage();
 
     USoundWave*      ButtonClickSound = nullptr;
     USoundWave*      ButtonHoverSound = nullptr;
@@ -55,4 +57,6 @@ private:
     FReply OnHighScoresClicked();
     FReply OnAboutClicked();
     FReply OnQuitClicked();
+    // ── DEMO ONLY — remove this line when demo is over ──
+    FReply OnDemoLevelsClicked();
 };

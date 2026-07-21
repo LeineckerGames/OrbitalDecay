@@ -126,6 +126,18 @@ void SMainMenuWidget::Construct(const FArguments& InArgs)
             MyWorld, MainMenuMusic, MusicVolume, 1.f, 0.f, nullptr, false, false);
     }
 
+    // Apply saved game audio volume immediately so menu button sounds
+    // are already at the right level when the menu first appears.
+    {
+        USoundMix*   Mix   = LoadObject<USoundMix>  (nullptr, TEXT("/Game/Sounds/SM_GameMix.SM_GameMix"));
+        USoundClass* Class = LoadObject<USoundClass>(nullptr, TEXT("/Game/Sounds/SC_GameAudio.SC_GameAudio"));
+        if (Mix && Class && MyWorld)
+        {
+            UGameplayStatics::PushSoundMixModifier(MyWorld, Mix);
+            UGameplayStatics::SetSoundMixClassOverride(MyWorld, Mix, Class, GameAudioVolume, 1.f, 0.f, true);
+        }
+    }
+
     ContentArea = SNew(SBox);
 
     ChildSlot
@@ -435,7 +447,13 @@ TSharedRef<SWidget> SMainMenuWidget::BuildSettingsPage()
                                 {
                                     MusicVolume = Value;
                                     if (MusicComponent)
+                                    {
                                         MusicComponent->SetVolumeMultiplier(Value);
+                                        // UE virtualises (stops) audio components at volume 0.
+                                        // Restart the component if it stopped while muted.
+                                        if (Value > 0.f && !MusicComponent->IsPlaying())
+                                            MusicComponent->Play();
+                                    }
                                     SaveSettings();
                                 })
                         ]

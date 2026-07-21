@@ -630,8 +630,8 @@ TSharedRef<SWidget> SCockpitWidget::BuildFuelGauge()
                                                     {
                                                         if ((P->Fuel / P->MaxFuel) <= 0.20f)
                                                         {
-                                                            float T = (float)FSlateApplication::Get().GetCurrentTime();
-                                                            return FMath::Fmod(T, 0.5f) < 0.25f ? C_FuelLow : C_FuelFull;
+                                                            double T = FSlateApplication::Get().GetCurrentTime();
+                                                            return FMath::Fmod(T, 0.5) < 0.25 ? C_FuelLow : C_FuelFull;
                                                         }
                                                         return C_FuelFull;
                                                     }

@@ -34,7 +34,7 @@ public:
     class UTextureRenderTarget2D* BottomCameraRenderTarget;
 
     UPROPERTY(EditAnywhere, Category = "Camera")
-    bool bShowBottomCamera = false;
+    bool bShowBottomCamera = true;
 
     UPROPERTY(EditAnywhere, Category = "Replay")
     AReplayRecorder* ReplayRecorder = nullptr;
@@ -163,6 +163,7 @@ public:
     void RotateRight();
     void ToggleThrustMode();
     void ToggleBottomCamera();
+    void SetBottomCameraActive(bool bActive);
     void ActivateBoost();
     void AddFuel(float Amount);
     void StartCrashReplay();

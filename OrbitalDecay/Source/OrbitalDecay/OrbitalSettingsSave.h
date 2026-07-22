@@ -14,4 +14,7 @@ public:
 
     UPROPERTY()
     float GameAudioVolume = 1.0f;
+
+    UPROPERTY()
+    bool bLegacyMode = false;
 };

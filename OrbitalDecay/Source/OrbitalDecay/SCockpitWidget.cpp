@@ -14,6 +14,8 @@
 #include "Widgets/Images/SImage.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Containers/Ticker.h"
+#include "OrbitalSettingsSave.h"
+#include "Kismet/GameplayStatics.h"
 #include "Rendering/DrawElements.h"
 #include "Engine/TextureRenderTarget2D.h"
 
@@ -1245,6 +1247,7 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
         {
             MyOwnerHUD->bQuestionActive = false;
             MyOwnerHUD->CurrentQuestionText = TEXT("");
+            PendingAction = TEXT("");
             ResultText = FText::FromString(TEXT("CANCELLED"));
             ResultColor = FSlateColor(C_AccentAmber);
 
@@ -1258,14 +1261,37 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
 
     if (!MyOwnerHUD->bQuestionActive)
     {
-        FString Type = TEXT("");
-        if (InKeyEvent.GetKey() == EKeys::A) Type = "a";
-        else if (InKeyEvent.GetKey() == EKeys::S) Type = "d";
-        else if (InKeyEvent.GetKey() == EKeys::W) Type = "m";
-        else if (InKeyEvent.GetKey() == EKeys::D) Type = "s";
+        // Map key → intended movement action
+        FString Action = TEXT("");
+        if      (InKeyEvent.GetKey() == EKeys::W) Action = TEXT("thrust");
+        else if (InKeyEvent.GetKey() == EKeys::A) Action = TEXT("rotate_left");
+        else if (InKeyEvent.GetKey() == EKeys::D) Action = TEXT("rotate_right");
+        else if (InKeyEvent.GetKey() == EKeys::S) Action = TEXT("add_fuel");
 
-        if (!Type.IsEmpty())
+        if (!Action.IsEmpty())
         {
+            PendingAction = Action;
+
+            // In Legacy Mode each key keeps its original fixed operator.
+            // Otherwise the operator is random so the math varies each press.
+            UOrbitalSettingsSave* SaveData = Cast<UOrbitalSettingsSave>(
+                UGameplayStatics::LoadGameFromSlot(UOrbitalSettingsSave::SaveSlotName, 0));
+            const bool bLegacy = SaveData && SaveData->bLegacyMode;
+
+            FString Type;
+            if (bLegacy)
+            {
+                if      (InKeyEvent.GetKey() == EKeys::W) Type = TEXT("m"); // multiply → thrust
+                else if (InKeyEvent.GetKey() == EKeys::A) Type = TEXT("a"); // add      → rotate left
+                else if (InKeyEvent.GetKey() == EKeys::D) Type = TEXT("s"); // subtract → rotate right
+                else if (InKeyEvent.GetKey() == EKeys::S) Type = TEXT("d"); // divide   → add fuel
+            }
+            else
+            {
+                static const FString Operators[] = { TEXT("a"), TEXT("s"), TEXT("m"), TEXT("d") };
+                Type = Operators[FMath::RandRange(0, 3)];
+            }
+
             if (P) P->PlayKeyClickSound();
 
             AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
@@ -1370,14 +1396,14 @@ void SCockpitWidget::CheckAnswer()
         {
             P->PlayCorrectAnswerSound();
 
-            if (MyOwnerHUD->QuestionType == "d")
+            if (PendingAction == TEXT("add_fuel"))
             {
                 P->AddFuel(MyOwnerHUD->FuelRewardAmount);
                 P->PlayFuelSound();
                 ResultText = FText::FromString(
                     FString::Printf(TEXT("CORRECT! +%.0f FUEL"), MyOwnerHUD->FuelRewardAmount));
             }
-            else if (MyOwnerHUD->QuestionType == "m")
+            else if (PendingAction == TEXT("thrust"))
             {
                 if (P->Fuel <= 0.0f)
                 {
@@ -1391,18 +1417,19 @@ void SCockpitWidget::CheckAnswer()
                         TEXT("CORRECT! FORWARD BOOST!") : TEXT("CORRECT! BOOST!"));
                 }
             }
-            else if (MyOwnerHUD->QuestionType == "a")
+            else if (PendingAction == TEXT("rotate_left"))
             {
                 P->RotateLeft();
                 ResultText = FText::FromString(TEXT("CORRECT! ROTATING LEFT"));
                 ResultColor = FSlateColor(C_AccentAmber);
             }
-            else if (MyOwnerHUD->QuestionType == "s")
+            else if (PendingAction == TEXT("rotate_right"))
             {
                 P->RotateRight();
                 ResultText = FText::FromString(TEXT("CORRECT! ROTATING RIGHT"));
                 ResultColor = FSlateColor(C_AccentAmber);
             }
+            PendingAction = TEXT("");
         }
     }
     else

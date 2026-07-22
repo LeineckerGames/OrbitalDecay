@@ -40,6 +40,7 @@ private:
 
     float MusicVolume     = 0.7f;
     float GameAudioVolume = 1.0f;
+    bool  bLegacyMode     = false;
 
     void PlayButtonSound();
     void PlayHoverSound();

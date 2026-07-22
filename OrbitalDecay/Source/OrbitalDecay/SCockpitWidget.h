@@ -65,6 +65,10 @@ private:
     FSlateColor ResultColor;
     bool        bInputEnabled = true;
 
+    // What movement the player committed to when they pressed a key.
+    // Decoupled from the math operator so questions are always random.
+    FString PendingAction;
+
     mutable FSlateBrush PortraitBrush;
 
     FString FullMissionText;

@@ -12,6 +12,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Input/SSlider.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Misc/App.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundWave.h"
@@ -97,6 +98,7 @@ void SMainMenuWidget::Construct(const FArguments& InArgs)
     {
         MusicVolume     = Settings->MusicVolume;
         GameAudioVolume = Settings->GameAudioVolume;
+        bLegacyMode     = Settings->bLegacyMode;
     }
 
     // Prefer assets from the level-placed holder (guaranteed cooked in packaged
@@ -607,6 +609,7 @@ TSharedRef<SWidget> SMainMenuWidget::BuildSettingsPage()
                         // Game Audio Volume
                         + SVerticalBox::Slot()
                         .AutoHeight()
+                        .Padding(0.f, 0.f, 0.f, 28.f)
                         [
                             MakeSliderRow(TEXT("Game Audio"), GameAudioVolume,
                                 [this](float Value)
@@ -621,6 +624,53 @@ TSharedRef<SWidget> SMainMenuWidget::BuildSettingsPage()
                                         UGameplayStatics::SetSoundMixClassOverride(MyWorld, Mix, Class, Value, 1.f, 0.f, true);
                                     }
                                 })
+                        ]
+
+                        // Legacy Mode toggle
+                        + SVerticalBox::Slot()
+                        .AutoHeight()
+                        [
+                            SNew(SHorizontalBox)
+
+                            + SHorizontalBox::Slot()
+                            .AutoWidth()
+                            .VAlign(VAlign_Center)
+                            [
+                                SNew(SCheckBox)
+                                .IsChecked_Lambda([this]() -> ECheckBoxState
+                                {
+                                    return bLegacyMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+                                })
+                                .OnCheckStateChanged_Lambda([this](ECheckBoxState NewState)
+                                {
+                                    bLegacyMode = (NewState == ECheckBoxState::Checked);
+                                    SaveSettings();
+                                })
+                            ]
+
+                            + SHorizontalBox::Slot()
+                            .AutoWidth()
+                            .VAlign(VAlign_Center)
+                            .Padding(10.f, 0.f, 0.f, 0.f)
+                            [
+                                SNew(SVerticalBox)
+                                + SVerticalBox::Slot()
+                                .AutoHeight()
+                                [
+                                    SNew(STextBlock)
+                                    .Text(FText::FromString(TEXT("Legacy Mode")))
+                                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 15))
+                                    .ColorAndOpacity(FLinearColor(0.75f, 0.82f, 0.95f, 1.f))
+                                ]
+                                + SVerticalBox::Slot()
+                                .AutoHeight()
+                                [
+                                    SNew(STextBlock)
+                                    .Text(FText::FromString(TEXT("Each key generates its original operator type")))
+                                    .Font(FCoreStyle::GetDefaultFontStyle("Regular", 11))
+                                    .ColorAndOpacity(FLinearColor(0.45f, 0.52f, 0.62f, 1.f))
+                                ]
+                            ]
                         ]
 
                         // ── Add new settings below this line ──
@@ -786,6 +836,7 @@ void SMainMenuWidget::SaveSettings() const
     {
         Settings->MusicVolume     = MusicVolume;
         Settings->GameAudioVolume = GameAudioVolume;
+        Settings->bLegacyMode     = bLegacyMode;
         UGameplayStatics::SaveGameToSlot(Settings, UOrbitalSettingsSave::SaveSlotName, 0);
     }
 }

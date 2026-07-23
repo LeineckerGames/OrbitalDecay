@@ -104,7 +104,7 @@ void ALanderPawn::BeginPlay()
     BottomCamera->SetRelativeRotation(FRotator(-90.f, 0.f, 0.f));
     BottomCamera->TextureTarget = BottomCameraRenderTarget;
     BottomCamera->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
-    SetBottomCameraActive(bShowBottomCamera);
+    SetBottomCameraActive(true);
     
 
     if (MissionCharacters.Num() > 0)

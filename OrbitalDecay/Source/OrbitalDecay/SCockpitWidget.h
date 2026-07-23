@@ -59,7 +59,6 @@ private:
     TWeakObjectPtr<AMyHUD> MyOwnerHUD;
     TSharedPtr<SEditableText> AnswerInputBox;
     TSharedPtr<SButton> PauseButton;
-    TSharedPtr<SButton> BottomCameraToggleButton;
     TSharedPtr<SImage> BottomCameraImage;
     FText       ResultText;
     FSlateColor ResultColor;
@@ -80,7 +79,6 @@ private:
 
     TSharedRef<SWidget> BuildWindowArea();
     TSharedRef<SWidget> BuildBottomCameraFeed(); 
-    TSharedRef<SWidget> BuildBottomCameraToggle();
     TSharedRef<SWidget> BuildBottomPanel();
     TSharedRef<SWidget> BuildLeftPanel();
     TSharedRef<SWidget> BuildCenterPanel();

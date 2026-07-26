@@ -59,11 +59,14 @@ private:
     TWeakObjectPtr<AMyHUD> MyOwnerHUD;
     TSharedPtr<SEditableText> AnswerInputBox;
     TSharedPtr<SButton> PauseButton;
-    TSharedPtr<SButton> BottomCameraToggleButton;
     TSharedPtr<SImage> BottomCameraImage;
     FText       ResultText;
     FSlateColor ResultColor;
     bool        bInputEnabled = true;
+
+    // What movement the player committed to when they pressed a key.
+    // Decoupled from the math operator so questions are always random.
+    FString PendingAction;
 
     mutable FSlateBrush PortraitBrush;
 
@@ -76,7 +79,6 @@ private:
 
     TSharedRef<SWidget> BuildWindowArea();
     TSharedRef<SWidget> BuildBottomCameraFeed(); 
-    TSharedRef<SWidget> BuildBottomCameraToggle();
     TSharedRef<SWidget> BuildBottomPanel();
     TSharedRef<SWidget> BuildLeftPanel();
     TSharedRef<SWidget> BuildCenterPanel();

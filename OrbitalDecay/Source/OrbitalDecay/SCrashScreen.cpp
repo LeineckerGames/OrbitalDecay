@@ -6,6 +6,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Kismet/GameplayStatics.h"
+#include "LoadingScreen.h"
 
 static const FLinearColor CS_Bg      = FLinearColor(0.00f, 0.00f, 0.00f, 0.80f);
 static const FLinearColor CS_Panel   = FLinearColor(0.06f, 0.04f, 0.04f, 1.f);
@@ -20,6 +21,9 @@ void SCrashScreen::Construct(const FArguments& InArgs)
 {
     MyWorld      = InArgs._OwnerWorld;
     CurrentLevel = InArgs._CurrentLevel;
+
+    ButtonClickSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/342200__christopherderp__videogame-menu-button-click.342200__christopherderp__videogame-menu-button-click"));
+    ButtonHoverSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/ButtonHover.ButtonHover"));
 
     ChildSlot
     [
@@ -96,6 +100,7 @@ void SCrashScreen::Construct(const FArguments& InArgs)
                                 .HAlign(HAlign_Center)
                                 .VAlign(VAlign_Center)
                                 .OnClicked(this, &SCrashScreen::OnRetryClicked)
+                                .OnHovered(FSimpleDelegate::CreateSP(this, &SCrashScreen::PlayHoverSound))
                                 [
                                     SNew(STextBlock)
                                     .Text(FText::FromString(TEXT("RETRY")))
@@ -118,6 +123,7 @@ void SCrashScreen::Construct(const FArguments& InArgs)
                                 .HAlign(HAlign_Center)
                                 .VAlign(VAlign_Center)
                                 .OnClicked(this, &SCrashScreen::OnMainMenuClicked)
+                                .OnHovered(FSimpleDelegate::CreateSP(this, &SCrashScreen::PlayHoverSound))
                                 [
                                     SNew(STextBlock)
                                     .Text(FText::FromString(TEXT("MAIN MENU")))
@@ -134,14 +140,27 @@ void SCrashScreen::Construct(const FArguments& InArgs)
     ];
 }
 
+void SCrashScreen::PlayButtonSound()
+{
+    if (ButtonClickSound && MyWorld)
+        UGameplayStatics::PlaySound2D(MyWorld, ButtonClickSound);
+}
+
+void SCrashScreen::PlayHoverSound()
+{
+    if (ButtonHoverSound && MyWorld)
+        UGameplayStatics::PlaySound2D(MyWorld, ButtonHoverSound, 0.5f);
+}
+
 FReply SCrashScreen::OnRetryClicked()
 {
+    PlayButtonSound();
     if (MyWorld)
     {
         if (GEngine && GEngine->GameViewport)
-            GEngine->GameViewport->RemoveViewportWidgetContent(SharedThis(this));
+            GEngine->GameViewport->RemoveAllViewportWidgets();
 
-        UGameplayStatics::OpenLevel(MyWorld,
+        ULoadingScreen::Show(MyWorld,
             FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
     }
     return FReply::Handled();
@@ -149,11 +168,18 @@ FReply SCrashScreen::OnRetryClicked()
 
 FReply SCrashScreen::OnMainMenuClicked()
 {
-    if (GEngine && GEngine->GameViewport)
-        GEngine->GameViewport->RemoveAllViewportWidgets();
-
+    PlayButtonSound();
     if (MyWorld)
-        UGameplayStatics::OpenLevel(MyWorld, FName("MainMenu"));
-
+    {
+        TSharedRef<SCrashScreen> Self = SharedThis(this);
+        FTimerHandle TimerHandle;
+        MyWorld->GetTimerManager().SetTimer(TimerHandle, [this, Self]()
+        {
+            if (GEngine && GEngine->GameViewport)
+                GEngine->GameViewport->RemoveAllViewportWidgets();
+            if (MyWorld)
+                UGameplayStatics::OpenLevel(MyWorld, FName("MainMenu"));
+        }, 0.2f, false);
+    }
     return FReply::Handled();
 }

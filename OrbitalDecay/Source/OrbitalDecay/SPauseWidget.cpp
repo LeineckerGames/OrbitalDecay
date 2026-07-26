@@ -7,6 +7,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Kismet/GameplayStatics.h"
 #include "OrbitalSaveGame.h"
+#include "LoadingScreen.h"
 
 static const FLinearColor PW_Bg      = FLinearColor(0.02f, 0.03f, 0.05f, 0.92f);
 static const FLinearColor PW_Panel   = FLinearColor(0.05f, 0.07f, 0.10f, 1.f);
@@ -19,7 +20,8 @@ static const FLinearColor PW_Text    = FLinearColor(0.85f, 0.90f, 1.00f, 1.f);
 static TSharedRef<SWidget> MakePauseButton(
     const FString& Label,
     FLinearColor BgColor,
-    FOnClicked OnClicked)
+    FOnClicked OnClicked,
+    FSimpleDelegate OnHovered = FSimpleDelegate())
 {
     return SNew(SBox)
         .WidthOverride(240.f)
@@ -30,6 +32,7 @@ static TSharedRef<SWidget> MakePauseButton(
             .HAlign(HAlign_Center)
             .VAlign(VAlign_Center)
             .OnClicked(OnClicked)
+            .OnHovered(OnHovered)
             [
                 SNew(STextBlock)
                 .Text(FText::FromString(Label))
@@ -44,6 +47,9 @@ void SPauseWidget::Construct(const FArguments& InArgs)
 {
     MyWorld  = InArgs._OwnerWorld;
     OnResume = InArgs._OnResume;
+
+    ButtonClickSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/342200__christopherderp__videogame-menu-button-click.342200__christopherderp__videogame-menu-button-click"));
+    ButtonHoverSound = LoadObject<USoundWave>(nullptr, TEXT("/Game/Sounds/ButtonHover.ButtonHover"));
 
     ChildSlot
     [
@@ -95,7 +101,8 @@ void SPauseWidget::Construct(const FArguments& InArgs)
                     .Padding(0.f, 6.f)
                     [
                         MakePauseButton(TEXT("RESUME"), PW_BtnBg,
-                            FOnClicked::CreateSP(this, &SPauseWidget::OnResumeClicked))
+                            FOnClicked::CreateSP(this, &SPauseWidget::OnResumeClicked),
+                            FSimpleDelegate::CreateSP(this, &SPauseWidget::PlayHoverSound))
                     ]
 
                     // Restart
@@ -105,7 +112,8 @@ void SPauseWidget::Construct(const FArguments& InArgs)
                     .Padding(0.f, 6.f)
                     [
                         MakePauseButton(TEXT("RESTART"), PW_BtnBg,
-                            FOnClicked::CreateSP(this, &SPauseWidget::OnRestartClicked))
+                            FOnClicked::CreateSP(this, &SPauseWidget::OnRestartClicked),
+                            FSimpleDelegate::CreateSP(this, &SPauseWidget::PlayHoverSound))
                     ]
 
                     // Main Menu
@@ -115,7 +123,8 @@ void SPauseWidget::Construct(const FArguments& InArgs)
                     .Padding(0.f, 6.f)
                     [
                         MakePauseButton(TEXT("MAIN MENU"), PW_BtnRed,
-                            FOnClicked::CreateSP(this, &SPauseWidget::OnMainMenuClicked))
+                            FOnClicked::CreateSP(this, &SPauseWidget::OnMainMenuClicked),
+                            FSimpleDelegate::CreateSP(this, &SPauseWidget::PlayHoverSound))
                     ]
                 ]
             ]
@@ -123,8 +132,21 @@ void SPauseWidget::Construct(const FArguments& InArgs)
     ];
 }
 
+void SPauseWidget::PlayButtonSound()
+{
+    if (ButtonClickSound && MyWorld)
+        UGameplayStatics::PlaySound2D(MyWorld, ButtonClickSound);
+}
+
+void SPauseWidget::PlayHoverSound()
+{
+    if (ButtonHoverSound && MyWorld)
+        UGameplayStatics::PlaySound2D(MyWorld, ButtonHoverSound, 0.5f);
+}
+
 FReply SPauseWidget::OnResumeClicked()
 {
+    PlayButtonSound();
     // Unpause the game
     APlayerController* PC = MyWorld ?
         MyWorld->GetFirstPlayerController() : nullptr;
@@ -137,43 +159,37 @@ FReply SPauseWidget::OnResumeClicked()
 
 FReply SPauseWidget::OnRestartClicked()
 {
+    PlayButtonSound();
     APlayerController* PC = MyWorld ?
         MyWorld->GetFirstPlayerController() : nullptr;
     if (PC) PC->SetPause(false);
 
-    // Remove widget before level loads
-    if (GEngine && GEngine->GameViewport)
-        GEngine->GameViewport->RemoveAllViewportWidgets();
-
-    if (MyWorld) {
-        // Reset level progress to 1
-        UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
-            UGameplayStatics::LoadGameFromSlot(
-                UOrbitalSaveGame::SaveSlotName, 0));
-
-        if (SaveGame) {
-            SaveGame->ResetToLevelOne();
-        }
-
-        UGameplayStatics::OpenLevel(MyWorld,
+    if (MyWorld)
+        ULoadingScreen::Show(MyWorld,
             FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
-    }
 
     return FReply::Handled();
 }
 
 FReply SPauseWidget::OnMainMenuClicked()
 {
+    PlayButtonSound();
     APlayerController* PC = MyWorld ?
         MyWorld->GetFirstPlayerController() : nullptr;
     if (PC) PC->SetPause(false);
 
-    // Remove widget before level loads
-    if (GEngine && GEngine->GameViewport)
-        GEngine->GameViewport->RemoveAllViewportWidgets();
-
     if (MyWorld)
-        UGameplayStatics::OpenLevel(MyWorld, FName("MainMenu"));
+    {
+        TSharedRef<SPauseWidget> Self = SharedThis(this);
+        FTimerHandle TimerHandle;
+        MyWorld->GetTimerManager().SetTimer(TimerHandle, [this, Self]()
+        {
+            if (GEngine && GEngine->GameViewport)
+                GEngine->GameViewport->RemoveAllViewportWidgets();
+            if (MyWorld)
+                UGameplayStatics::OpenLevel(MyWorld, FName("MainMenu"));
+        }, 0.2f, false);
+    }
 
     return FReply::Handled();
 }

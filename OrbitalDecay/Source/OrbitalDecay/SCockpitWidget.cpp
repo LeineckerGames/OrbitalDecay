@@ -14,6 +14,8 @@
 #include "Widgets/Images/SImage.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Containers/Ticker.h"
+#include "OrbitalSettingsSave.h"
+#include "Kismet/GameplayStatics.h"
 #include "Rendering/DrawElements.h"
 #include "Engine/TextureRenderTarget2D.h"
 
@@ -289,15 +291,127 @@ TSharedRef<SWidget> SCockpitWidget::BuildWindowArea()
         .VAlign(VAlign_Fill)
         [ SNew(SSpacer) ]
 
-        // Bottom camera feed — bottom-left of the window, a square
-        // "screen" whose bottom edge sits flush against the top of
-        // the control panel below, like a physically mounted monitor.
+        // ── Centered mission briefing panel ──────────────────────
+        // Visible only during the pre-game briefing (bGameStarted = false)
+        // Disappears the moment movement unlocks.
         + SOverlay::Slot()
-        .HAlign(HAlign_Left)
-        .VAlign(VAlign_Bottom)
-        .Padding(12.f, 0.f, 0.f, 0.f)
+        .HAlign(HAlign_Center)
+        .VAlign(VAlign_Center)
+        .Padding(40.f)
         [
-            BuildBottomCameraFeed()
+            SNew(SBox)
+            .Visibility_Lambda([this]() -> EVisibility
+            {
+                if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                {
+                    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                    if (P && P->bGameStarted)
+                        return EVisibility::Collapsed;
+                }
+                return EVisibility::Visible;
+            })
+            .WidthOverride(700.f)
+            [
+                SNew(SBorder)
+                .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                .BorderBackgroundColor(FLinearColor(0.04f, 0.05f, 0.07f, 0.92f))
+                .Padding(24.f)
+                [
+                    SNew(SVerticalBox)
+
+                    // Header — "MISSION FROM [NAME]"
+                    + SVerticalBox::Slot()
+                    .AutoHeight()
+                    .Padding(0, 0, 0, 10)
+                    [
+                        SNew(STextBlock)
+                        .Font(FCoreStyle::GetDefaultFontStyle("Bold", 14))
+                        .ColorAndOpacity(C_AccentGreen)
+                        .Text_Lambda([this]() -> FText
+                        {
+                            if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                            {
+                                ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                                if (P && P->SelectedCharacter)
+                                    return FText::FromString(
+                                        FString::Printf(TEXT("MISSION FROM %s"),
+                                            *P->SelectedCharacter->CharacterName.ToUpper()));
+                            }
+                            return FText::FromString(TEXT("MISSION BRIEFING"));
+                        })
+                    ]
+
+                    // Divider
+                    + SVerticalBox::Slot()
+                    .AutoHeight()
+                    .Padding(0, 0, 0, 16)
+                    [
+                        SNew(SBorder)
+                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                        .BorderBackgroundColor(C_PanelBorder)
+                        .Padding(FMargin(0, 1))
+                        [ SNew(SSpacer) ]
+                    ]
+
+                    // Portrait (left) + dialogue text (right)
+                    + SVerticalBox::Slot()
+                    .AutoHeight()
+                    [
+                        SNew(SHorizontalBox)
+
+                        // Character portrait — large and prominent
+                        + SHorizontalBox::Slot()
+                        .AutoWidth()
+                        .Padding(0, 0, 20, 0)
+                        [
+                            SNew(SBox)
+                            .WidthOverride(120.f)
+                            .HeightOverride(120.f)
+                            [
+                                SNew(SBorder)
+                                .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                                .BorderBackgroundColor(C_PanelBorder)
+                                .Padding(2.f)
+                                [
+                                    SNew(SImage)
+                                    .Image_Lambda([this]() -> const FSlateBrush*
+                                    {
+                                        if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                                        {
+                                            ALanderPawn* P = Cast<ALanderPawn>(
+                                                MyOwnerHUD->GetOwningPawn());
+                                            if (P && P->SelectedCharacter &&
+                                                P->SelectedCharacter->CharacterPortrait)
+                                            {
+                                                PortraitBrush.SetResourceObject(
+                                                    P->SelectedCharacter->CharacterPortrait);
+                                                PortraitBrush.ImageSize = FVector2D(120.f, 120.f);
+                                                return &PortraitBrush;
+                                            }
+                                        }
+                                        return FCoreStyle::Get().GetBrush("WhiteBrush");
+                                    })
+                                ]
+                            ]
+                        ]
+
+                        // Dialogue text with typewriter effect
+                        + SHorizontalBox::Slot()
+                        .FillWidth(1.f)
+                        .VAlign(VAlign_Center)
+                        [
+                            SNew(STextBlock)
+                            .Font(FCoreStyle::GetDefaultFontStyle("Regular", 16))
+                            .ColorAndOpacity(C_DisplayText)
+                            .AutoWrapText(true)
+                            .Text_Lambda([this]() -> FText
+                            {
+                                return FText::FromString(DisplayedMissionText);
+                            })
+                        ]
+                    ]
+                ]
+            ]
         ]
 
         // Pause button — top right corner
@@ -336,7 +450,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildWindowArea()
             ]
         ]
 
-        // Result feedback text at bottom of window
+        // Result feedback text
         + SOverlay::Slot()
         .HAlign(HAlign_Center)
         .VAlign(VAlign_Bottom)
@@ -350,144 +464,34 @@ TSharedRef<SWidget> SCockpitWidget::BuildWindowArea()
 }
 
 // ─── Bottom Camera Feed ─────────────────────────────────────────────
-// Square live-render display anchored at the bottom-left of the
-// transparent window, sized to ~1/4 of the window's typical width.
-// Only visible while the player has the camera toggled on.
 TSharedRef<SWidget> SCockpitWidget::BuildBottomCameraFeed()
 {
-    return SNew(SBox)
-        .WidthOverride(220.f)
-        .HeightOverride(220.f)
-        .Visibility_Lambda([this]() -> EVisibility
-        {
-            if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
-            {
-                ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                if (Pawn && Pawn->bShowBottomCamera)
-                    return EVisibility::Visible;
-            }
-            return EVisibility::Hidden;
-        })
+    return SNew(SBorder)
+        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+        .BorderBackgroundColor(C_PanelBorder)
+        .Padding(3.f)
         [
-            SNew(SBorder)
-            .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-            .BorderBackgroundColor(C_PanelBorder)
-            .Padding(4.f)
-            [
-                SAssignNew(BottomCameraImage, SImage)
-                .Image_Lambda([this]() -> const FSlateBrush*
+            SAssignNew(BottomCameraImage, SImage)
+            .Image_Lambda([this]() -> const FSlateBrush*
+            {
+                static FSlateBrush DynamicBrush;
+                if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
                 {
-                    static FSlateBrush DynamicBrush;
-                    if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                    ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
+                    if (Pawn && Pawn->BottomCameraRenderTarget)
                     {
-                        ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                        if (Pawn && Pawn->BottomCameraRenderTarget)
-                        {
-                            DynamicBrush.SetResourceObject(Pawn->BottomCameraRenderTarget);
-                            DynamicBrush.ImageSize = FVector2D(220.f, 220.f);
-                            return &DynamicBrush;
-                        }
+                        DynamicBrush.SetResourceObject(Pawn->BottomCameraRenderTarget);
+                        DynamicBrush.DrawAs = ESlateBrushDrawType::Image;
+                        DynamicBrush.ImageSize = FVector2D(256.f, 256.f);
+                        return &DynamicBrush;
                     }
-                    return FCoreStyle::Get().GetBrush("WhiteBrush");
-                })
-            ]
+                }
+                return FCoreStyle::Get().GetBrush("WhiteBrush");
+            })
         ];
 }
 
-// ─── Bottom Camera Toggle Button ────────────────────────────────────
-// Small 48x48 button, same size as the pause button, drawn with a
-// simple hand-built camera icon (body + lens) rather than the live
-// feed itself — lives in the left control panel next to Throttle.
-TSharedRef<SWidget> SCockpitWidget::BuildBottomCameraToggle()
-{
-    return SAssignNew(BottomCameraToggleButton, SButton)
-        .ButtonColorAndOpacity_Lambda([this]() -> FSlateColor
-        {
-            if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
-            {
-                ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                if (Pawn && Pawn->bShowBottomCamera)
-                    return FSlateColor(FLinearColor(0.10f, 0.30f, 0.16f, 1.f)); // lit green-ish when active
-            }
-            return FSlateColor(FLinearColor(0.08f, 0.10f, 0.14f, 0.85f)); // default dark, matches pause button
-        })
-        .HAlign(HAlign_Center)
-        .VAlign(VAlign_Center)
-        .OnClicked_Lambda([this]() -> FReply
-        {
-            if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
-            {
-                ALanderPawn* Pawn = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                if (Pawn) Pawn->ToggleBottomCamera();
-            }
-            return FReply::Handled();
-        })
-        [
-            SNew(SBox)
-            .WidthOverride(28.f)
-            .HeightOverride(22.f)
-            [
-                SNew(SOverlay)
 
-                // Camera body — rounded-feeling rectangle
-                + SOverlay::Slot()
-                .HAlign(HAlign_Fill)
-                .VAlign(VAlign_Fill)
-                [
-                    SNew(SBorder)
-                    .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                    .BorderBackgroundColor(FLinearColor(0.20f, 1.00f, 0.30f, 1.f))
-                ]
-
-                // Small "viewfinder bump" on top
-                + SOverlay::Slot()
-                .HAlign(HAlign_Center)
-                .VAlign(VAlign_Top)
-                .Padding(0.f, -5.f, 0.f, 0.f)
-                [
-                    SNew(SBox)
-                    .WidthOverride(10.f)
-                    .HeightOverride(5.f)
-                    [
-                        SNew(SBorder)
-                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                        .BorderBackgroundColor(FLinearColor(0.20f, 1.00f, 0.30f, 1.f))
-                    ]
-                ]
-
-                // Lens — dark circle approximation in the center
-                + SOverlay::Slot()
-                .HAlign(HAlign_Center)
-                .VAlign(VAlign_Center)
-                [
-                    SNew(SBox)
-                    .WidthOverride(12.f)
-                    .HeightOverride(12.f)
-                    [
-                        SNew(SBorder)
-                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                        .BorderBackgroundColor(FLinearColor(0.05f, 0.06f, 0.08f, 1.f))
-                    ]
-                ]
-
-                // Inner lens glint
-                + SOverlay::Slot()
-                .HAlign(HAlign_Center)
-                .VAlign(VAlign_Center)
-                .Padding(0.f, -2.f, 2.f, 0.f)
-                [
-                    SNew(SBox)
-                    .WidthOverride(4.f)
-                    .HeightOverride(4.f)
-                    [
-                        SNew(SBorder)
-                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                        .BorderBackgroundColor(FLinearColor(0.60f, 0.95f, 0.70f, 0.8f))
-                    ]
-                ]
-            ]
-        ];
-}
 
 // ─── Bottom Panel ─────────────────────────────────────────────────
 TSharedRef<SWidget> SCockpitWidget::BuildBottomPanel()
@@ -516,68 +520,9 @@ TSharedRef<SWidget> SCockpitWidget::BuildLeftPanel()
     return SNew(SBorder)
         .BorderBackgroundColor(C_PanelBorder)
         .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-        .Padding(6.f)
+        .Padding(4.f)
         [
-            SNew(SVerticalBox)
-
-                + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 4, 0, 2)
-                [
-                    SNew(STextBlock)
-                        .Text(FText::FromString(TEXT("FUEL")))
-                        .Font(FCoreStyle::GetDefaultFontStyle("Bold", 14))
-                        .ColorAndOpacity(C_AccentGreen)
-                ]
-
-                + SVerticalBox::Slot().FillHeight(1.f).Padding(0, 2)
-                [BuildFuelGauge()]
-
-                + SVerticalBox::Slot().AutoHeight().Padding(0, 6)
-                [
-                    SNew(SBorder)
-                        .BorderBackgroundColor(C_PanelBorder)
-                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                        .Padding(FMargin(0, 1))
-                        [SNew(SSpacer)]
-                ]
-
-            + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 2)
-            [
-                SNew(STextBlock)
-                    .Text(FText::FromString(TEXT("THROTTLE")))
-                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
-                    .ColorAndOpacity(C_AccentAmber)
-            ]
-
-            // Throttle indicator — centered alone
-            + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 4)
-            [
-                BuildThrottleIndicator()
-            ]
-
-            // Camera toggle (left) + Thrust Switch (right) — evenly split
-            + SVerticalBox::Slot().AutoHeight().Padding(0, 4)
-            [
-                SNew(SHorizontalBox)
-
-                + SHorizontalBox::Slot()
-                .FillWidth(1.f)
-                .HAlign(HAlign_Center)
-                [
-                    SNew(SBox)
-                    .WidthOverride(48.f)
-                    .HeightOverride(48.f)
-                    [
-                        BuildBottomCameraToggle()
-                    ]
-                ]
-
-                + SHorizontalBox::Slot()
-                .FillWidth(1.f)
-                .HAlign(HAlign_Center)
-                [
-                    BuildThrustSwitch()
-                ]
-            ]
+            BuildBottomCameraFeed()
         ];
 }
 
@@ -626,7 +571,15 @@ TSharedRef<SWidget> SCockpitWidget::BuildFuelGauge()
                                                 if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
                                                 {
                                                     ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                                                    if (P) return (P->Fuel / P->MaxFuel) <= 0.20f ? C_FuelLow : C_FuelFull;
+                                                    if (P)
+                                                    {
+                                                        if ((P->Fuel / P->MaxFuel) <= 0.20f)
+                                                        {
+                                                            double T = FSlateApplication::Get().GetCurrentTime();
+                                                            return FMath::Fmod(T, 0.5) < 0.25 ? C_FuelLow : C_FuelFull;
+                                                        }
+                                                        return C_FuelFull;
+                                                    }
                                                 }
                                                 return C_FuelFull;
                                             })
@@ -821,14 +774,20 @@ TSharedRef<SWidget> SCockpitWidget::BuildComputerDisplay()
                         + SVerticalBox::Slot().FillHeight(1.f).VAlign(VAlign_Center).HAlign(HAlign_Center)
                         [
                             SNew(STextBlock)
-                                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 32))
+                                .Font_Lambda([this]() -> FSlateFontInfo
+                                    {
+                                        bool bIdle = !MyOwnerHUD.IsValid() || MyOwnerHUD->CurrentQuestionText.IsEmpty();
+                                        return FCoreStyle::GetDefaultFontStyle("Bold", bIdle ? 18 : 32);
+                                    })
                                 .ColorAndOpacity(C_DisplayText)
+                                .Justification(ETextJustify::Center)
                                 .Text_Lambda([this]() -> FText
                                     {
                                         if (MyOwnerHUD.IsValid())
                                         {
                                             FString Q = MyOwnerHUD->CurrentQuestionText;
-                                            if (Q.IsEmpty()) return FText::FromString(TEXT("PRESS W A S D"));
+                                            if (Q.IsEmpty()) return FText::FromString(
+                                                TEXT("W: Thrust   A: Left Rotate   D: Right Rotate   S: Add Fuel"));
                                             return FText::FromString(Q);
                                         }
                                         return FText::FromString(TEXT("NO HUD"));
@@ -960,29 +919,310 @@ TSharedRef<SWidget> SCockpitWidget::BuildRightPanel()
         [
             SNew(SVerticalBox)
 
+            // ── TOP: Minimap (left half) + Stats text (right half) ──
+            + SVerticalBox::Slot()
+            .FillHeight(0.55f)
+            .Padding(0, 0, 0, 4)
+            [
+                SNew(SHorizontalBox)
+
+                // Left half — minimap
+                + SHorizontalBox::Slot()
+                .FillWidth(1.f)
+                .HAlign(HAlign_Center)
+                .VAlign(VAlign_Center)
+                .Padding(0, 0, 4, 0)
+                [
+                    SNew(SBox)
+                    .WidthOverride(110.f)
+                    .HeightOverride(110.f)
+                    [
+                        BuildMinimap()
+                    ]
+                ]
+
+                // Right half — stats in gray bordered box
+                + SHorizontalBox::Slot()
+                .FillWidth(1.f)
+                .Padding(4, 0, 0, 0)
+                [
+                    SNew(SBorder)
+                    .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                    .BorderBackgroundColor(C_PanelBg)
+                    .Padding(8.f)
+                    [
+                        SNew(SVerticalBox)
+
+                        // ALT
+                        + SVerticalBox::Slot()
+                        .AutoHeight()
+                        .Padding(0, 4)
+                        [
+                            SNew(SHorizontalBox)
+
+                            + SHorizontalBox::Slot()
+                            .AutoWidth()
+                            .Padding(0, 0, 6, 0)
+                            [
+                                SNew(STextBlock)
+                                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
+                                .ColorAndOpacity(C_White)
+                                .Text(FText::FromString(TEXT("ALT:")))
+                            ]
+
+                            + SHorizontalBox::Slot()
+                            .FillWidth(1.f)
+                            [
+                                SNew(STextBlock)
+                                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
+                                .ColorAndOpacity(C_White)
+                                .Text_Lambda([this]() -> FText
+                                {
+                                    if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                                    {
+                                        ALanderPawn* P = Cast<ALanderPawn>(
+                                            MyOwnerHUD->GetOwningPawn());
+                                        if (P) return FText::FromString(
+                                            FString::Printf(TEXT("%.0f ft"),
+                                                P->CurrentAltitude));
+                                    }
+                                    return FText::FromString(TEXT("--"));
+                                })
+                            ]
+                        ]
+
+                        // VSPD
+                        + SVerticalBox::Slot()
+                        .AutoHeight()
+                        .Padding(0, 4)
+                        [
+                            SNew(SHorizontalBox)
+
+                            + SHorizontalBox::Slot()
+                            .AutoWidth()
+                            .Padding(0, 0, 6, 0)
+                            [
+                                SNew(STextBlock)
+                                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
+                                .ColorAndOpacity_Lambda([this]() -> FSlateColor
+                                {
+                                    if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                                    {
+                                        ALanderPawn* P = Cast<ALanderPawn>(
+                                            MyOwnerHUD->GetOwningPawn());
+                                        if (P) return P->CurrentVelocity.Z < -5.f ?
+                                            FSlateColor(C_FuelLow) :
+                                            FSlateColor(C_AccentGreen);
+                                    }
+                                    return FSlateColor(C_White);
+                                })
+                                .Text(FText::FromString(TEXT("VSPD:")))
+                            ]
+
+                            + SHorizontalBox::Slot()
+                            .FillWidth(1.f)
+                            [
+                                SNew(STextBlock)
+                                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
+                                .ColorAndOpacity_Lambda([this]() -> FSlateColor
+                                {
+                                    if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                                    {
+                                        ALanderPawn* P = Cast<ALanderPawn>(
+                                            MyOwnerHUD->GetOwningPawn());
+                                        if (P) return P->CurrentVelocity.Z < -5.f ?
+                                            FSlateColor(C_FuelLow) :
+                                            FSlateColor(C_AccentGreen);
+                                    }
+                                    return FSlateColor(C_White);
+                                })
+                                .Text_Lambda([this]() -> FText
+                                {
+                                    if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                                    {
+                                        ALanderPawn* P = Cast<ALanderPawn>(
+                                            MyOwnerHUD->GetOwningPawn());
+                                        if (P) return FText::FromString(
+                                            FString::Printf(TEXT("%.1f"),
+                                                P->CurrentVelocity.Z));
+                                    }
+                                    return FText::FromString(TEXT("--"));
+                                })
+                            ]
+                        ]
+
+                        // FUEL
+                        + SVerticalBox::Slot()
+                        .AutoHeight()
+                        .Padding(0, 4)
+                        [
+                            SNew(SHorizontalBox)
+
+                            + SHorizontalBox::Slot()
+                            .AutoWidth()
+                            .Padding(0, 0, 6, 0)
+                            [
+                                SNew(STextBlock)
+                                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
+                                .ColorAndOpacity(C_White)
+                                .Text(FText::FromString(TEXT("FUEL:")))
+                            ]
+
+                            + SHorizontalBox::Slot()
+                            .FillWidth(1.f)
+                            [
+                                SNew(STextBlock)
+                                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
+                                .ColorAndOpacity(C_White)
+                                .Text_Lambda([this]() -> FText
+                                {
+                                    if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
+                                    {
+                                        ALanderPawn* P = Cast<ALanderPawn>(
+                                            MyOwnerHUD->GetOwningPawn());
+                                        if (P) return FText::FromString(
+                                            FString::Printf(TEXT("%.0f"), P->Fuel));
+                                    }
+                                    return FText::FromString(TEXT("--"));
+                                })
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+
+            // ── MIDDLE: Horizontal fuel bar ────────────────────────
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            .Padding(0, 4)
+            [
+                SNew(SVerticalBox)
+
+                // FUEL label
                 + SVerticalBox::Slot()
                 .AutoHeight()
                 .HAlign(HAlign_Center)
-                .Padding(0, 4)
+                .Padding(0, 0, 0, 2)
                 [
-                    SNew(SBox)
-                        .WidthOverride(130.f)
-                        .HeightOverride(130.f)
-                        [
-                            BuildMinimap()
-                        ]
+                    SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("FUEL")))
+                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+                    .ColorAndOpacity(C_AccentGreen)
                 ]
 
-            + SVerticalBox::Slot()
-                .AutoHeight()
-                .Padding(0, 4)
-                [BuildAltitudePanel()]
-
-                // Mission briefing panel below altitude
+                // Bar
                 + SVerticalBox::Slot()
-                .FillHeight(1.f)
-                .Padding(0, 4)
-                [BuildMissionPanel()]
+                .AutoHeight()
+                [
+                    SNew(SBox)
+                    .HeightOverride(22.f)
+                    [
+                        SNew(SBorder)
+                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                        .BorderBackgroundColor(C_PanelBorder)
+                        .Padding(2.f)
+                        [
+                            // Use SOverlay: background track behind,
+                            // fill bar on top using NormalizedFill attribute
+                            SNew(SOverlay)
+
+                            // Background
+                            + SOverlay::Slot()
+                            [
+                                SNew(SBorder)
+                                .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                                .BorderBackgroundColor(
+                                    FLinearColor(0.05f, 0.05f, 0.05f, 1.f))
+                            ]
+
+                            // Fill — left-aligned, width driven by fuel pct
+                            // We wrap in an SHorizontalBox so the fill
+                            // slot takes a proportion of available width.
+                            + SOverlay::Slot()
+                            .HAlign(HAlign_Fill)
+                            .VAlign(VAlign_Fill)
+                            [
+                                SNew(SHorizontalBox)
+
+                                // Filled portion
+                                + SHorizontalBox::Slot()
+                                .FillWidth(TAttribute<float>::CreateLambda([this]() -> float
+                                {
+                                    if (MyOwnerHUD.IsValid() &&
+                                        MyOwnerHUD->GetOwningPawn())
+                                    {
+                                        ALanderPawn* P = Cast<ALanderPawn>(
+                                            MyOwnerHUD->GetOwningPawn());
+                                        if (P) return FMath::Clamp(
+                                            P->Fuel / P->MaxFuel, 0.f, 1.f);
+                                    }
+                                    return 1.f;
+                                }))
+                                [
+                                    SNew(SBorder)
+                                    .BorderImage(
+                                        FCoreStyle::Get().GetBrush("WhiteBrush"))
+                                    .BorderBackgroundColor_Lambda(
+                                        [this]() -> FLinearColor
+                                    {
+                                        if (MyOwnerHUD.IsValid() &&
+                                            MyOwnerHUD->GetOwningPawn())
+                                        {
+                                            ALanderPawn* P = Cast<ALanderPawn>(
+                                                MyOwnerHUD->GetOwningPawn());
+                                            if (P) return P->Fuel < (P->MaxFuel * 0.15f) ?
+                                                C_FuelLow : C_FuelFull;
+                                        }
+                                        return C_FuelFull;
+                                    })
+                                ]
+
+                                // Empty remainder
+                                + SHorizontalBox::Slot()
+                                .FillWidth(TAttribute<float>::CreateLambda([this]() -> float
+                                {
+                                    if (MyOwnerHUD.IsValid() &&
+                                        MyOwnerHUD->GetOwningPawn())
+                                    {
+                                        ALanderPawn* P = Cast<ALanderPawn>(
+                                            MyOwnerHUD->GetOwningPawn());
+                                        if (P) return 1.f - FMath::Clamp(
+                                            P->Fuel / P->MaxFuel, 0.f, 1.f);
+                                    }
+                                    return 0.f;
+                                }))
+                                [
+                                    SNew(SSpacer)
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+
+            // ── BOTTOM: Thrust Switch (left) + Throttle (right) ───
+            + SVerticalBox::Slot()
+            .FillHeight(0.45f)
+            .Padding(0, 4, 0, 0)
+            [
+                SNew(SHorizontalBox)
+
+                + SHorizontalBox::Slot()
+                .FillWidth(1.f)
+                .HAlign(HAlign_Center)
+                .VAlign(VAlign_Center)
+                [
+                    BuildThrustSwitch()
+                ]
+
+                + SHorizontalBox::Slot()
+                .FillWidth(1.f)
+                .HAlign(HAlign_Center)
+                .VAlign(VAlign_Center)
+                [
+                    BuildThrottleIndicator()
+                ]
+            ]
         ];
 }
 
@@ -1071,89 +1311,7 @@ TSharedRef<SWidget> SCockpitWidget::BuildAltitudePanel()
         ];
 }
 
-TSharedRef<SWidget> SCockpitWidget::BuildMissionPanel()
-{
-    return SNew(SBorder)
-        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-        .BorderBackgroundColor(C_PanelBg)
-        .Padding(6.f)
-        [
-            SNew(SVerticalBox)
 
-                // Header: "MISSION FROM [CHARACTER NAME]"
-                + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)
-                [
-                    SNew(STextBlock)
-                        .Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
-                        .ColorAndOpacity(C_AccentGreen)
-                        .Text_Lambda([this]() -> FText
-                            {
-                                if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
-                                {
-                                    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                                    if (P && P->SelectedCharacter)
-                                        return FText::FromString(
-                                            FString::Printf(TEXT("MISSION FROM %s"),
-                                                *P->SelectedCharacter->CharacterName.ToUpper()));
-                                }
-                                return FText::FromString(TEXT("MISSION"));
-                            })
-                ]
-
-            // Divider
-            + SVerticalBox::Slot().AutoHeight().Padding(0, 2)
-                [
-                    SNew(SBorder)
-                        .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                        .BorderBackgroundColor(C_PanelBorder)
-                        .Padding(FMargin(0, 1))
-                        [SNew(SSpacer)]
-                ]
-
-            // Character portrait
-            + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left).Padding(0, 4)
-                [
-                    SNew(SBox)
-                        .WidthOverride(40.f)
-                        .HeightOverride(40.f)
-                        [
-                            SNew(SBorder)
-                                .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-                                .BorderBackgroundColor(C_PanelBorder)
-                                [
-                                    SNew(SImage)
-                                        .Image_Lambda([this]() -> const FSlateBrush*
-                                            {
-                                                if (MyOwnerHUD.IsValid() && MyOwnerHUD->GetOwningPawn())
-                                                {
-                                                    ALanderPawn* P = Cast<ALanderPawn>(MyOwnerHUD->GetOwningPawn());
-                                                    if (P && P->SelectedCharacter && P->SelectedCharacter->CharacterPortrait)
-                                                    {
-                                                        PortraitBrush.SetResourceObject(P->SelectedCharacter->CharacterPortrait);
-                                                        PortraitBrush.ImageSize = FVector2D(40.f, 40.f);
-                                                        return &PortraitBrush;
-                                                    }
-                                                }
-                                                return FCoreStyle::Get().GetBrush("WhiteBrush");
-                                            })
-                                ]
-                        ]
-                ]
-
-            // Typewriter mission text
-            + SVerticalBox::Slot().FillHeight(1.f).Padding(0, 4)
-                [
-                    SNew(STextBlock)
-                        .Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
-                        .ColorAndOpacity(C_DisplayText)
-                        .AutoWrapText(true)
-                        .Text_Lambda([this]() -> FText
-                            {
-                                return FText::FromString(DisplayedMissionText);
-                            })
-                ]
-        ];
-}
 
 
 // ─── SetInputEnabled ──────────────────────────────────────────────
@@ -1172,7 +1330,7 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
     if (!P || !P->bGameStarted)
     {
         // Allow pause key even during briefing
-        if (InKeyEvent.GetKey() == EKeys::P)
+        if (InKeyEvent.GetKey() == EKeys::Escape)
         {
             AMyHUD* HUD = Cast<AMyHUD>(MyOwnerHUD.Get());
             if (HUD)
@@ -1200,16 +1358,9 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
         return FReply::Handled();
     }
 
-    if (InKeyEvent.GetKey() == EKeys::C)
-    {
-        if (P)
-        {
-            P->ToggleBottomCamera();
-        }
-        return FReply::Handled();
-    }
 
-    if (InKeyEvent.GetKey() == EKeys::P)
+
+    if (InKeyEvent.GetKey() == EKeys::Escape)
     {
         if (MyOwnerHUD.IsValid())
         {
@@ -1231,6 +1382,7 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
         {
             MyOwnerHUD->bQuestionActive = false;
             MyOwnerHUD->CurrentQuestionText = TEXT("");
+            PendingAction = TEXT("");
             ResultText = FText::FromString(TEXT("CANCELLED"));
             ResultColor = FSlateColor(C_AccentAmber);
 
@@ -1244,14 +1396,37 @@ FReply SCockpitWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
 
     if (!MyOwnerHUD->bQuestionActive)
     {
-        FString Type = TEXT("");
-        if (InKeyEvent.GetKey() == EKeys::A) Type = "a";
-        else if (InKeyEvent.GetKey() == EKeys::S) Type = "d";
-        else if (InKeyEvent.GetKey() == EKeys::W) Type = "m";
-        else if (InKeyEvent.GetKey() == EKeys::D) Type = "s";
+        // Map key → intended movement action
+        FString Action = TEXT("");
+        if      (InKeyEvent.GetKey() == EKeys::W) Action = TEXT("thrust");
+        else if (InKeyEvent.GetKey() == EKeys::A) Action = TEXT("rotate_left");
+        else if (InKeyEvent.GetKey() == EKeys::D) Action = TEXT("rotate_right");
+        else if (InKeyEvent.GetKey() == EKeys::S) Action = TEXT("add_fuel");
 
-        if (!Type.IsEmpty())
+        if (!Action.IsEmpty())
         {
+            PendingAction = Action;
+
+            // In Legacy Mode each key keeps its original fixed operator.
+            // Otherwise the operator is random so the math varies each press.
+            UOrbitalSettingsSave* SaveData = Cast<UOrbitalSettingsSave>(
+                UGameplayStatics::LoadGameFromSlot(UOrbitalSettingsSave::SaveSlotName, 0));
+            const bool bLegacy = SaveData && SaveData->bLegacyMode;
+
+            FString Type;
+            if (bLegacy)
+            {
+                if      (InKeyEvent.GetKey() == EKeys::W) Type = TEXT("m"); // multiply → thrust
+                else if (InKeyEvent.GetKey() == EKeys::A) Type = TEXT("a"); // add      → rotate left
+                else if (InKeyEvent.GetKey() == EKeys::D) Type = TEXT("s"); // subtract → rotate right
+                else if (InKeyEvent.GetKey() == EKeys::S) Type = TEXT("d"); // divide   → add fuel
+            }
+            else
+            {
+                static const FString Operators[] = { TEXT("a"), TEXT("s"), TEXT("m"), TEXT("d") };
+                Type = Operators[FMath::RandRange(0, 3)];
+            }
+
             if (P) P->PlayKeyClickSound();
 
             AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
@@ -1356,14 +1531,14 @@ void SCockpitWidget::CheckAnswer()
         {
             P->PlayCorrectAnswerSound();
 
-            if (MyOwnerHUD->QuestionType == "d")
+            if (PendingAction == TEXT("add_fuel"))
             {
                 P->AddFuel(MyOwnerHUD->FuelRewardAmount);
                 P->PlayFuelSound();
                 ResultText = FText::FromString(
                     FString::Printf(TEXT("CORRECT! +%.0f FUEL"), MyOwnerHUD->FuelRewardAmount));
             }
-            else if (MyOwnerHUD->QuestionType == "m")
+            else if (PendingAction == TEXT("thrust"))
             {
                 if (P->Fuel <= 0.0f)
                 {
@@ -1377,18 +1552,19 @@ void SCockpitWidget::CheckAnswer()
                         TEXT("CORRECT! FORWARD BOOST!") : TEXT("CORRECT! BOOST!"));
                 }
             }
-            else if (MyOwnerHUD->QuestionType == "a")
+            else if (PendingAction == TEXT("rotate_left"))
             {
                 P->RotateLeft();
                 ResultText = FText::FromString(TEXT("CORRECT! ROTATING LEFT"));
                 ResultColor = FSlateColor(C_AccentAmber);
             }
-            else if (MyOwnerHUD->QuestionType == "s")
+            else if (PendingAction == TEXT("rotate_right"))
             {
                 P->RotateRight();
                 ResultText = FText::FromString(TEXT("CORRECT! ROTATING RIGHT"));
                 ResultColor = FSlateColor(C_AccentAmber);
             }
+            PendingAction = TEXT("");
         }
     }
     else

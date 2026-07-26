@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Sound/SoundWave.h"
 
 DECLARE_DELEGATE(FOnResumeDelegate);
 
@@ -17,8 +18,13 @@ public:
     void Construct(const FArguments& InArgs);
 
 private:
-    UWorld*          MyWorld  = nullptr;
+    UWorld*           MyWorld          = nullptr;
     FOnResumeDelegate OnResume;
+    USoundWave*       ButtonClickSound = nullptr;
+    USoundWave*       ButtonHoverSound = nullptr;
+
+    void PlayButtonSound();
+    void PlayHoverSound();
 
     FReply OnResumeClicked();
     FReply OnRestartClicked();

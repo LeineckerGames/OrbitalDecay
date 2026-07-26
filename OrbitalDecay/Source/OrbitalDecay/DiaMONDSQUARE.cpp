@@ -346,39 +346,59 @@ void ADiaMONDSQUARE::ApplyLevelSettings(int32 Level)
 	switch (SteppedLevel)
 	{
 	case 1:
-		XSize = 150;
-		YSize = 150;
-		ZMultiplier  = 150.0f;
-		NoiseScale   = 0.3f;
-		BorderMargin = 1100.0f;
+		XSize                = 160;
+		YSize                = 160;
+		Scale                = 1000.0f;
+		ZMultiplier          = 1200.0f;
+		NoiseScale           = 0.2f;
+		BorderMargin         = 72000.0f; // walls at ±8000 UU from centre (10% playable of 160000 map)
+		bEnablePlanetCurvature = true;
+		PlanetRadius         = 500000.0f;
+		CurvatureEdgeFalloff = 0.7f;
 		break;
 	case 6:
-		XSize = 150;
-		YSize = 150;
-		ZMultiplier  = 300.0f;
-		NoiseScale   = 0.5f;
-		BorderMargin = 1000.0f;
+		XSize                = 160;
+		YSize                = 160;
+		Scale                = 1000.0f;
+		ZMultiplier          = 2500.0f; // taller than level 1
+		NoiseScale           = 0.25f;   // broad hills, not spikes
+		BorderMargin         = 72000.0f;
+		bEnablePlanetCurvature = true;
+		PlanetRadius         = 500000.0f;
+		CurvatureEdgeFalloff = 0.7f;
 		break;
 	case 11:
-		XSize = 150;
-		YSize = 150;
-		ZMultiplier  = 450.0f;
-		NoiseScale   = 0.7f;
-		BorderMargin = 900.0f;
+		XSize                = 160;
+		YSize                = 160;
+		Scale                = 1000.0f;
+		ZMultiplier          = 4000.0f; // dramatic mountain-scale height
+		NoiseScale           = 0.22f;   // slightly broader features than level 6
+		BorderMargin         = 72000.0f;
+		bEnablePlanetCurvature = true;
+		PlanetRadius         = 500000.0f;
+		CurvatureEdgeFalloff = 0.7f;
 		break;
 	case 16:
-		XSize = 150;
-		YSize = 150;
-		ZMultiplier  = 600.0f;
-		NoiseScale   = 0.9f;
-		BorderMargin = 800.0f;
+		XSize                = 160;
+		YSize                = 160;
+		Scale                = 1000.0f;
+		ZMultiplier          = 6000.0f; // very tall peaks
+		NoiseScale           = 0.2f;    // same frequency as level 1 — broad and imposing
+		BorderMargin         = 72000.0f;
+		bEnablePlanetCurvature = true;
+		PlanetRadius         = 500000.0f;
+		CurvatureEdgeFalloff = 0.7f;
 		break;
 	default:
-		XSize = 150;
-		YSize = 150;
-		ZMultiplier  = 150.0f;
-		NoiseScale   = 0.3f;
-		BorderMargin = 1100.0f;
+		XSize                = 160;
+		YSize                = 160;
+		Scale                = 1000.0f;
+		ZMultiplier          = 1200.0f;
+		NoiseScale           = 0.2f;
+		BorderMargin         = 72000.0f;
+		bEnablePlanetCurvature = true;
+		PlanetRadius         = 500000.0f;
+		CurvatureEdgeFalloff = 0.7f;
 		break;
 	}
 
@@ -439,7 +459,33 @@ void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
             if (Dist2D > Config.MaxSpawnRadius) continue;
         }
 
-        FVector WorldPos = GetActorTransform().TransformPosition(Vertices[Idx]);
+        // Find the highest terrain Z within SurfaceSampleRadius grid cells.
+        // This prevents large objects (e.g. landing pads) from embedding into
+        // sloped terrain where a nearby vertex is higher than the spawn vertex.
+        float LocalZ = Vertices[Idx].Z;
+        if (Config.SurfaceSampleRadius > 0)
+        {
+            const int32 Vx = Idx / (YSize + 1);
+            const int32 Vy = Idx % (YSize + 1);
+            const int32 R  = Config.SurfaceSampleRadius;
+            for (int32 Dx = -R; Dx <= R; ++Dx)
+            {
+                for (int32 Dy = -R; Dy <= R; ++Dy)
+                {
+                    const int32 Nx = Vx + Dx;
+                    const int32 Ny = Vy + Dy;
+                    if (Nx >= 0 && Nx <= XSize && Ny >= 0 && Ny <= YSize)
+                    {
+                        const int32 NIdx = Nx * (YSize + 1) + Ny;
+                        if (NIdx < Vertices.Num())
+                            LocalZ = FMath::Max(LocalZ, Vertices[NIdx].Z);
+                    }
+                }
+            }
+        }
+
+        FVector WorldPos = GetActorTransform().TransformPosition(
+            FVector(Vertices[Idx].X, Vertices[Idx].Y, LocalZ));
 
         if (!IsWithinPlayableBounds(Vertices[Idx], Config.SpawnBorderPadding))
         {

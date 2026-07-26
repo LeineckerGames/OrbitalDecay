@@ -12,6 +12,10 @@
 #include "SLevelCompleteWidget.h"
 #include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
+#include "OrbitalSettingsSave.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundMix.h"
+#include "Sound/SoundClass.h"
 
 AMyHUD::AMyHUD()
 {
@@ -27,10 +31,31 @@ AMyHUD::AMyHUD()
 void AMyHUD::BeginPlay()
 {
     Super::BeginPlay();
+
+    // Clear any widgets that persisted from the previous world
+    if (GEngine && GEngine->GameViewport)
+    {
+        GEngine->GameViewport->RemoveAllViewportWidgets();
+    }
+
     MathEngine = NewObject<UMathGenerator>(this);
     CurrentQuestionText = TEXT("");
     CurrentCorrectAnswer = -1;
     bQuestionActive = false;
+
+    // Apply saved game audio volume so the setting carries over from the main menu
+    UOrbitalSettingsSave* Settings = Cast<UOrbitalSettingsSave>(
+        UGameplayStatics::LoadGameFromSlot(UOrbitalSettingsSave::SaveSlotName, 0));
+    if (Settings)
+    {
+        USoundMix*   Mix   = LoadObject<USoundMix>  (nullptr, TEXT("/Game/Sounds/SM_GameMix.SM_GameMix"));
+        USoundClass* Class = LoadObject<USoundClass>(nullptr, TEXT("/Game/Sounds/SC_GameAudio.SC_GameAudio"));
+        if (Mix && Class)
+        {
+            UGameplayStatics::PushSoundMixModifier(GetWorld(), Mix);
+            UGameplayStatics::SetSoundMixClassOverride(GetWorld(), Mix, Class, Settings->GameAudioVolume, 1.f, 0.f, true);
+        }
+    }
 
     if (GEngine && GEngine->GameViewport)
     {

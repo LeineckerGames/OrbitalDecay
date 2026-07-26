@@ -7,6 +7,12 @@ void AMainMenuHUD::BeginPlay()
 {
     Super::BeginPlay();
 
+    // Clear any widgets that persisted from the previous world
+    if (GEngine && GEngine->GameViewport)
+    {
+        GEngine->GameViewport->RemoveAllViewportWidgets();
+    }
+
     if (GEngine && GEngine->GameViewport)
     {
         MainMenuWidget = SNew(SMainMenuWidget).OwnerWorld(GetWorld());

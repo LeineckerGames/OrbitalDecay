@@ -1170,8 +1170,15 @@ TSharedRef<SWidget> SCockpitWidget::BuildRightPanel()
                                         {
                                             ALanderPawn* P = Cast<ALanderPawn>(
                                                 MyOwnerHUD->GetOwningPawn());
-                                            if (P) return P->Fuel < (P->MaxFuel * 0.15f) ?
-                                                C_FuelLow : C_FuelFull;
+                                            if (P)
+                                            {
+                                                if ((P->Fuel / P->MaxFuel) <= 0.20f)
+                                                {
+                                                    double T = FSlateApplication::Get().GetCurrentTime();
+                                                    return FMath::Fmod(T, 0.5) < 0.25 ? C_FuelLow : C_FuelFull;
+                                                }
+                                                return C_FuelFull;
+                                            }
                                         }
                                         return C_FuelFull;
                                     })

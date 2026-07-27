@@ -140,6 +140,9 @@ void SMainMenuWidget::Construct(const FArguments& InArgs)
 
     if (MainMenuMusic && MyWorld)
     {
+        // Force looping in memory (does not modify the saved asset).
+        MainMenuMusic->bLooping = true;
+
         // SpawnSound2D returns the audio component so we can adjust volume live
         // from the settings slider. bAutoDestroy=false keeps it alive until the
         // world tears down when OpenLevel is called.

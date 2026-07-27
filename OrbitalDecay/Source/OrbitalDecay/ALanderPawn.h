@@ -188,7 +188,7 @@ public:
     // before auto-descent kicks in.  Increase if descent triggers too easily,
     // decrease if players have to be too precise.
     UPROPERTY(EditAnywhere, Category = "Flight")
-    float PadCenterRadius = 150.0f;
+    float PadCenterRadius = 300.0f;
 
     float CurrentBoostTimer = 0.0f;
     float LowGravity = -160.0f;

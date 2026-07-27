@@ -179,6 +179,16 @@ public:
     bool bForwardThrustMode = false;
     bool bHasLanded = false;
     bool bIsBoosting = false;
+    bool bAutoDescending = false;
+
+    UPROPERTY(EditAnywhere, Category = "Flight")
+    float AutoDescendSpeed = 500.0f;
+
+    // How close to the pad's centre (in cm, XY only) the trace must land
+    // before auto-descent kicks in.  Increase if descent triggers too easily,
+    // decrease if players have to be too precise.
+    UPROPERTY(EditAnywhere, Category = "Flight")
+    float PadCenterRadius = 150.0f;
 
     float CurrentBoostTimer = 0.0f;
     float LowGravity = -160.0f;

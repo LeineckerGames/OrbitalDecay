@@ -49,8 +49,12 @@ public:
     //For Level tracking
     UPROPERTY()
     int32 CurrentLevel = 1;
+    UPROPERTY()
+    bool bIsTutorialRun = false;
 
     void SaveCurrentLevel(int32 Level);
     int32 LoadCurrentLevel() const;
     void ResetToLevelOne();
+    void SetTutorialRun(bool bValue);
+    bool IsTutorialRun() const;
 };

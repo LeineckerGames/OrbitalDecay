@@ -2,6 +2,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
 #include "MathGenerator.h"
+#include "STutorialOverlay.h"
 #include "MyHUD.generated.h"
 
 UCLASS()
@@ -58,6 +59,22 @@ public:
     }
 
     void ShowLevelCompleteScreen(float CompletionTime, int32 Level);
+
+    // Tutorial system
+    void ShowTutorialStep(const FString& Title, const FString& Body);
+    void CheckTutorialTriggers();
+    bool bTutorialStep1Shown = false; // Welcome + HUD overview
+    bool bTutorialStep2Shown = false; // Math input
+    bool bTutorialStep3Shown = false; // First correct answer
+    bool bTutorialStep4Shown = false; // Low fuel
+    bool bTutorialStep5Shown = false; // Near landing pad
+    bool bTutorialStep6Shown = false; // First pad landed
+    bool bTutorialOverlayActive = false;
+
+    TSharedPtr<STutorialOverlay> MyTutorialOverlay;
+
+    // Cached once in BeginPlay — avoids LoadGameFromSlot every frame
+    bool bCachedIsTutorialRun = false;
 
 protected:
     virtual void BeginPlay() override;

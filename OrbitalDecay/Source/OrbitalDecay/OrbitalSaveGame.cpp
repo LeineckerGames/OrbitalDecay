@@ -43,3 +43,14 @@ void UOrbitalSaveGame::ResetToLevelOne()
     UGameplayStatics::SaveGameToSlot(this, SaveSlotName, 0);
 }
 //-------------------------------------------------------------------------------
+
+void UOrbitalSaveGame::SetTutorialRun(bool bValue)
+{
+    bIsTutorialRun = bValue;
+    UGameplayStatics::SaveGameToSlot(this, SaveSlotName, 0);
+}
+
+bool UOrbitalSaveGame::IsTutorialRun() const
+{
+    return bIsTutorialRun;
+}

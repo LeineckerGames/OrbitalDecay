@@ -805,6 +805,7 @@ FReply SMainMenuWidget::OnStartClicked()
 
     if (SaveGame)
     {
+        SaveGame->SetTutorialRun(false);
         SaveGame->SaveCurrentLevel(1);
         UGameplayStatics::SaveGameToSlot(
             SaveGame, UOrbitalSaveGame::SaveSlotName, 0);
@@ -818,7 +819,27 @@ FReply SMainMenuWidget::OnStartClicked()
 FReply SMainMenuWidget::OnTutorialClicked()
 {
     PlayButtonSound();
-    NavigateTo(BuildTutorialPage());
+
+    if (!MyWorld) return FReply::Handled();
+
+    // Set tutorial flag and reset to level 1
+    UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
+        UGameplayStatics::LoadGameFromSlot(
+            UOrbitalSaveGame::SaveSlotName, 0));
+    if (!SaveGame)
+        SaveGame = Cast<UOrbitalSaveGame>(
+            UGameplayStatics::CreateSaveGameObject(
+                UOrbitalSaveGame::StaticClass()));
+
+    if (SaveGame)
+    {
+        SaveGame->SetTutorialRun(true);
+        SaveGame->SaveCurrentLevel(1);
+    }
+
+    // Load the game level
+    UGameplayStatics::OpenLevel(MyWorld, FName("test"));
+
     return FReply::Handled();
 }
 

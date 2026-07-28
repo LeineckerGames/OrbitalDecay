@@ -287,7 +287,7 @@ TSharedRef<SWidget> SMainMenuWidget::BuildHomePage()
             // ── DEMO ONLY — remove this entire slot when demo is over ──
             + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 8)
             [
-                MakeMenuButton(TEXT("DEMO LEVELS"),
+                MakeMenuButton(TEXT("LEVELS"),
                     FOnClicked::CreateSP(this, &SMainMenuWidget::OnDemoLevelsClicked),
                     FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
             ]
@@ -374,7 +374,7 @@ TSharedRef<SWidget> SMainMenuWidget::BuildDemoLevelSelectPage()
             .Padding(0, 0, 0, 24)
             [
                 SNew(STextBlock)
-                .Text(FText::FromString(TEXT("DEMO — SELECT LEVEL")))
+                .Text(FText::FromString(TEXT("SELECT LEVEL")))
                 .Font(FCoreStyle::GetDefaultFontStyle("Bold", 36))
                 .ColorAndOpacity(FLinearColor(0.20f, 1.00f, 0.30f, 1.f))
                 .Justification(ETextJustify::Center)

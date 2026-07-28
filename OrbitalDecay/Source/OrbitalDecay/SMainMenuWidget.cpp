@@ -688,7 +688,10 @@ TSharedRef<SWidget> SMainMenuWidget::BuildAboutPage()
 {
     return SNew(SVerticalBox)
 
-        + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 40)
+        + SVerticalBox::Slot()
+        .AutoHeight()
+        .HAlign(HAlign_Center)
+        .Padding(0, 40, 0, 24)
         [
             SNew(STextBlock)
             .Text(FText::FromString(TEXT("CREDITS")))
@@ -696,26 +699,85 @@ TSharedRef<SWidget> SMainMenuWidget::BuildAboutPage()
             .ColorAndOpacity(MM_TitleColor)
         ]
 
-        + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 20)
+        + SVerticalBox::Slot()
+        .AutoHeight()
+        .HAlign(HAlign_Center)
+        .Padding(0, 0, 0, 12)
         [
-            SNew(SBox)
-            .WidthOverride(600.f)
-            [
-                SNew(STextBlock)
-                .Text(FText::FromString(TEXT("Coming soon.")))
-                .Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
-                .ColorAndOpacity(MM_TextColor)
-                .AutoWrapText(true)
-                .Justification(ETextJustify::Center)
-            ]
+            SNew(STextBlock)
+            .Text(FText::FromString(TEXT("DEVELOPERS")))
+            .Font(FCoreStyle::GetDefaultFontStyle("Bold", 20))
+            .ColorAndOpacity(MM_SubColor)
         ]
 
-        + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 40)
+        + SVerticalBox::Slot()
+        .AutoHeight()
+        .HAlign(HAlign_Center)
+        .Padding(0, 8)
+        [
+            SNew(STextBlock)
+            .Text(FText::FromString(TEXT("Nicholas Piazza")))
+            .Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
+            .ColorAndOpacity(MM_TextColor)
+            .Justification(ETextJustify::Center)
+        ]
+
+        + SVerticalBox::Slot()
+        .AutoHeight()
+        .HAlign(HAlign_Center)
+        .Padding(0, 8)
+        [
+            SNew(STextBlock)
+            .Text(FText::FromString(TEXT("Gabriel Gimeno-Alberti")))
+            .Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
+            .ColorAndOpacity(MM_TextColor)
+            .Justification(ETextJustify::Center)
+        ]
+
+        + SVerticalBox::Slot()
+        .AutoHeight()
+        .HAlign(HAlign_Center)
+        .Padding(0, 8)
+        [
+            SNew(STextBlock)
+            .Text(FText::FromString(TEXT("Lucas Santana")))
+            .Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
+            .ColorAndOpacity(MM_TextColor)
+            .Justification(ETextJustify::Center)
+        ]
+
+        + SVerticalBox::Slot()
+        .AutoHeight()
+        .HAlign(HAlign_Center)
+        .Padding(0, 8)
+        [
+            SNew(STextBlock)
+            .Text(FText::FromString(TEXT("Diego Toro")))
+            .Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
+            .ColorAndOpacity(MM_TextColor)
+            .Justification(ETextJustify::Center)
+        ]
+
+        + SVerticalBox::Slot()
+        .AutoHeight()
+        .HAlign(HAlign_Center)
+        .Padding(0, 8)
+        [
+            SNew(STextBlock)
+            .Text(FText::FromString(TEXT("Heather Lancaster")))
+            .Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
+            .ColorAndOpacity(MM_TextColor)
+            .Justification(ETextJustify::Center)
+        ]
+
+        + SVerticalBox::Slot()
+        .AutoHeight()
+        .HAlign(HAlign_Center)
+        .Padding(0, 40)
         [
             MakeMenuButton(TEXT("BACK"),
                 FOnClicked::CreateLambda([this]() -> FReply
                 {
-                    PlayButtonSound();
                     NavigateTo(BuildHomePage());
                     return FReply::Handled();
                 }),

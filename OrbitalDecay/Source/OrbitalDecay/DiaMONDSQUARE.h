@@ -14,6 +14,10 @@ struct FObjectPlacementConfig
 {
     GENERATED_BODY()
 
+    // Which level tier this layer belongs to (1, 6, 11, 16...), matching SteppedLevel.
+    UPROPERTY(EditAnywhere)
+    int32 Tier = 1;
+
     UPROPERTY(EditAnywhere)
     UStaticMesh* Mesh = nullptr;
 
@@ -50,6 +54,7 @@ struct FObjectPlacementConfig
     UPROPERTY(EditAnywhere, Meta = (ClampMin = 0))
     int32 SurfaceSampleRadius = 0;
 };
+
 
 UCLASS()
 class ORBITALDECAY_API ADiaMONDSQUARE : public AActor
@@ -93,8 +98,8 @@ public:
     UPROPERTY(EditAnywhere, Category = "Planet", Meta = (EditCondition = "bEnablePlanetCurvature", ClampMin = 0.0, ClampMax = 1.0))
     float CurvatureEdgeFalloff = 0.7f;
 
-    UPROPERTY(EditAnywhere)
-    TArray<FObjectPlacementConfig> ObjectLayers;
+    UPROPERTY(EditAnywhere, Category = "Obstacles")
+    TArray<FObjectPlacementConfig> ObstacleLayers;
 
     UPROPERTY(EditAnywhere, Category = "Border")
     float BorderMargin = 800.0f;       // distance inward from the mesh edge to the playable boundary
@@ -150,6 +155,7 @@ private:
     TArray<struct FProcMeshTangent> Tangents;
     TArray<AActor*> SpawnedActors;
     TArray<UStaticMeshComponent*> SpawnedObjects;
+    TArray<FObjectPlacementConfig> ObjectLayers;   // <-- add this back
     float RandomOffset = 0.0f;
     void CreateVertices();
     void CreateTriangles();
@@ -164,6 +170,6 @@ private:
     void OnBorderHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
         UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
-
     void ApplyLevelSettings(int32 Level);
+    void ApplyObstaclePreset(int32 Level);
 };

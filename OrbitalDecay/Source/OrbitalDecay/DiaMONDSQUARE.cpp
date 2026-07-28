@@ -72,6 +72,7 @@ void ADiaMONDSQUARE::BeginPlay()
 	UE_LOG(LogTemp, Warning, TEXT("BeginPlay: GM valid=%s, GlobalLevel=%d"), GM ? TEXT("true") : TEXT("false"), CurrentLevel);
 	
 	ApplyLevelSettings(CurrentLevel);
+	ApplyObstaclePreset(CurrentLevel);
 
 	UE_LOG(LogTemp, Warning, TEXT("Current Level = %d"), CurrentLevel);
 
@@ -533,4 +534,18 @@ void ADiaMONDSQUARE::PlaceObjects(const FObjectPlacementConfig& Config)
         PlacedPositions.Add(WorldPos);
         ++Placed;
     }
+}
+
+void ADiaMONDSQUARE::ApplyObstaclePreset(int32 Level)
+{
+	int32 SteppedLevel = ((Level - 1) / 5) * 5 + 1;
+
+	ObjectLayers.Reset();
+	for (const FObjectPlacementConfig& Config : ObstacleLayers)
+	{
+		if (Config.Tier == SteppedLevel)
+		{
+			ObjectLayers.Add(Config);
+		}
+	}
 }

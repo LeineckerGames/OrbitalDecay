@@ -195,7 +195,12 @@ void ALanderPawn::Tick(float DeltaTime)
                     }
                 }
 
-                if (Fuel > 0.0f)
+                if (bAutoDescending)
+                {
+                    // Locked auto-descent: freeze horizontal, pull down at fixed speed
+                    CurrentVelocity = FVector(0.f, 0.f, -AutoDescendSpeed);
+                }
+                else if (Fuel > 0.0f)
                 {
                     if (bForwardThrustMode)
                     {
@@ -284,6 +289,23 @@ void ALanderPawn::Tick(float DeltaTime)
             float DistanceFeet = DistanceCM * 0.0328084f;
             CurrentAltitude = DistanceFeet;
 
+            // Auto-descent: only trigger when the trace hits within PadCenterRadius of
+            // the pad's origin — prevents edge grazes from locking movement.
+            if (!bAutoDescending && !bHasLanded && HitResult.Distance > 375.0f)
+            {
+                AActor* HitActor = HitResult.GetActor();
+                if (HitActor && HitActor->ActorHasTag(FName("LandingPad")) && !VisitedPads.Contains(HitActor))
+                {
+                    FVector2D HitXY(HitResult.ImpactPoint.X, HitResult.ImpactPoint.Y);
+                    FVector2D PadXY(HitActor->GetActorLocation().X, HitActor->GetActorLocation().Y);
+                    if (FVector2D::Distance(HitXY, PadXY) <= PadCenterRadius)
+                    {
+                        bAutoDescending = true;
+                        CurrentVelocity = FVector::ZeroVector;
+                    }
+                }
+            }
+
             if (HitResult.Distance < 375.0f && !bHasLanded)
             {
                 bHasLanded = true;
@@ -345,6 +367,7 @@ void ALanderPawn::Tick(float DeltaTime)
                     GetWorldTimerManager().SetTimer(RelaunchTimer, [this]()
                         {
                             bHasLanded = false;
+                            bAutoDescending = false;
                             CurrentVelocity.Z = 300.0f;
                         }, 1.5f, false);
                 }
@@ -430,6 +453,7 @@ void ALanderPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 
 void ALanderPawn::ActivateBoost()
 {
+    if (bAutoDescending) return;
     if (Fuel > 0.0f)
     {
         bIsBoosting = true;
@@ -481,6 +505,7 @@ void ALanderPawn::ToggleBottomCamera()
 
 void ALanderPawn::RotateLeft()
 {
+    if (bAutoDescending) return;
     TargetRotation.Yaw -= RotationStep;
 
     if (RotationAudioComponent && RotationSound)
@@ -492,6 +517,7 @@ void ALanderPawn::RotateLeft()
 
 void ALanderPawn::RotateRight()
 {
+    if (bAutoDescending) return;
     TargetRotation.Yaw += RotationStep;
 
     if (RotationAudioComponent && RotationSound)
@@ -552,6 +578,7 @@ void ALanderPawn::TriggerCrash()
     if (bHasLanded || bLevelComplete) return; // already crashed/landed/finished — ignore repeat hits
 
     bHasLanded = true;        // halts the movement/gravity block in Tick(), same as a normal crash
+    bAutoDescending = false;
     CurrentVelocity = FVector::ZeroVector;
     bIsBoosting = false;
 

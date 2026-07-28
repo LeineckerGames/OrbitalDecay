@@ -16,6 +16,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundMix.h"
 #include "Sound/SoundClass.h"
+#include "OrbitalSaveGame.h"
 
 AMyHUD::AMyHUD()
 {
@@ -102,6 +103,7 @@ void AMyHUD::GenerateNewQuestion(FString Type, int32 Level)
 void AMyHUD::DrawHUD()
 {
     Super::DrawHUD();
+    CheckTutorialTriggers();
 
     // Check replay state every frame and show/hide HUD accordingly
     AReplayRecorder* Recorder = nullptr;
@@ -286,4 +288,158 @@ void AMyHUD::ShowLevelCompleteScreen(float CompletionTime, int32 Level)
 
     GEngine->GameViewport->AddViewportWidgetContent(
         MyLevelCompleteWidget.ToSharedRef(), 10);
+}
+
+void AMyHUD::ShowTutorialStep(const FString& Title, const FString& Body)
+{
+    if (!GEngine || !GEngine->GameViewport) return;
+    if (bTutorialOverlayActive) return;
+
+    bTutorialOverlayActive = true;
+
+    // Pause the game while the overlay is shown
+    APlayerController* PC = GetOwningPlayerController();
+    if (PC) PC->SetPause(true);
+
+    // Disable cockpit input
+    if (MyCockpitWidget.IsValid())
+        MyCockpitWidget->SetInputEnabled(false);
+
+    MyTutorialOverlay = SNew(STutorialOverlay)
+        .OwnerWorld(GetWorld())
+        .TitleText(Title)
+        .BodyText(Body)
+        .OnDismissed_Lambda([this]()
+            {
+                bTutorialOverlayActive = false;
+
+                // Re-enable cockpit input
+                if (MyCockpitWidget.IsValid())
+                {
+                    MyCockpitWidget->SetInputEnabled(true);
+                    FSlateApplication::Get().SetKeyboardFocus(MyCockpitWidget);
+                }
+                    
+            });
+
+    GEngine->GameViewport->AddViewportWidgetContent(
+        MyTutorialOverlay.ToSharedRef(), 20);
+}
+
+void AMyHUD::CheckTutorialTriggers()
+{
+    // Only run during a tutorial run
+    UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
+        UGameplayStatics::LoadGameFromSlot(
+            UOrbitalSaveGame::SaveSlotName, 0));
+    if (!SaveGame || !SaveGame->IsTutorialRun()) return;
+
+    // Don't check while an overlay is already showing
+    if (bTutorialOverlayActive) return;
+
+    ALanderPawn* Pawn = Cast<ALanderPawn>(GetOwningPawn());
+    AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
+        GetWorld()->GetAuthGameMode());
+    if (!Pawn || !GM) return;
+
+    // Step 1 — Welcome, fires when briefing ends and game starts
+    if (!bTutorialStep1Shown)
+    {
+        bTutorialStep1Shown = true;
+        ShowTutorialStep(
+            TEXT("WELCOME TO ORBITAL DECAY"),
+            TEXT("Your ship's computer is failing. You are the backup.\n\n"
+                "Watch your cockpit carefully:\n"
+                "• Fuel gauge — top left\n"
+                "• Math problem display — center\n"
+                "• Minimap — top right\n"
+                "• Altitude and vertical speed — bottom right\n\n"
+                "Gravity is always pulling you down. Don't wait too long.")
+        );
+        return;
+    }
+
+    // Step 2 — Math input, fires after step 1 is shown
+    if (!bTutorialStep2Shown && bTutorialStep1Shown)
+    {
+        bTutorialStep2Shown = true;
+        ShowTutorialStep(
+            TEXT("HOW TO CONTROL YOUR SHIP"),
+            TEXT("Math IS your controls. Press a key to get a problem:\n\n"
+                "• W — Multiplication → Thrust upward\n"
+                "• A — Addition → Rotate left\n"
+                "• S — Subtraction → Rotate right\n"
+                "• D — Division → Add fuel\n\n"
+                "Type your answer using the number keys or keypad, then press Enter.\n"
+                "Get it right and your ship responds. Get it wrong — nothing happens.")
+        );
+        return;
+    }
+
+    // Step 3 — Operation result, fires after first correct answer
+    if (!bTutorialStep3Shown && TotalQuestionsCorrect >= 1)
+    {
+        bTutorialStep3Shown = true;
+        ShowTutorialStep(
+            TEXT("NICE WORK"),
+            TEXT("You answered correctly and your ship responded.\n\n"
+                "Every correct answer fires a thruster for a short burst.\n"
+                "Keep solving problems to stay in control.\n\n"
+                "Remember — gravity never stops. Keep thrusting upward (W) "
+                "to slow your descent.")
+        );
+        return;
+    }
+
+    // Step 4 — Low fuel, fires when fuel drops below 50%
+    if (!bTutorialStep4Shown && Pawn->Fuel < (Pawn->MaxFuel * 0.5f))
+    {
+        bTutorialStep4Shown = true;
+        ShowTutorialStep(
+            TEXT("FUEL WARNING"),
+            TEXT("Your fuel is getting low.\n\n"
+                "Press D to get a Division problem.\n"
+                "Solve it correctly to add fuel to your tank.\n\n"
+                "If you run out of fuel completely, only gravity acts on your ship "
+                "and you will crash. Refuel early.")
+        );
+        return;
+    }
+
+    // Step 5 — Near landing pad, fires when a pad is close
+    // Uses PadsLanded as a proxy — minimap ring shows when near
+    // Step 5 — Near landing pad
+    if (!bTutorialStep5Shown && bTutorialStep1Shown && bTutorialStep2Shown &&
+        bTutorialStep3Shown && Pawn->PadsLanded == 0 &&
+        Pawn->CurrentAltitude < 3000.f && Pawn->CurrentAltitude > 0.f &&
+        Pawn->LevelTimeSeconds > 10.f)
+    {
+        bTutorialStep5Shown = true;
+        ShowTutorialStep(
+            TEXT("LANDING PAD NEARBY"),
+            TEXT("Check your minimap.\n\n"
+                "• Yellow ring — a landing pad is nearby\n"
+                "• Red ring — you are directly above a pad\n\n"
+                "When you see a red ring, slow your descent using W (thrust up).\n"
+                "Land too fast and you will crash even on the pad.\n\n"
+                "Watch your vertical speed indicator — keep it close to zero.")
+        );
+        return;
+    }
+
+    // Step 6 — First pad landed
+    if (!bTutorialStep6Shown && Pawn->PadsLanded >= 1)
+    {
+        bTutorialStep6Shown = true;
+        ShowTutorialStep(
+            TEXT("FIRST PAD COMPLETE — 1 OF 3"),
+            TEXT("Great landing!\n\n"
+                "There are 3 landing pads on this level. You need to land on all 3 "
+                "to complete the level.\n\n"
+                "After each landing your ship will relaunch automatically. "
+                "Use the minimap to find the next pad.\n\n"
+                "Good luck.")
+        );
+        return;
+    }
 }

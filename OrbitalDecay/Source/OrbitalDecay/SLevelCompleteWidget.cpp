@@ -410,6 +410,12 @@ FReply SLevelCompleteWidget::OnNextClicked()
                 GM->TriggerLevelComplete();
             }
 
+            // Turn off tutorial run flag so subsequent levels play normally
+            UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
+                UGameplayStatics::LoadGameFromSlot(
+                    UOrbitalSaveGame::SaveSlotName, 0));
+            if (SaveGame) SaveGame->SetTutorialRun(false);
+
             ULoadingScreen::Show(MyWorld,
                 FName(*UGameplayStatics::GetCurrentLevelName(MyWorld)));
         }

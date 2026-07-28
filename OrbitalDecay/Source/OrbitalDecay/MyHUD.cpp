@@ -58,6 +58,14 @@ void AMyHUD::BeginPlay()
         }
     }
 
+    // Cache the tutorial-run flag once so CheckTutorialTriggers doesn't
+    // hit the disk every frame.
+    {
+        UOrbitalSaveGame* TutSave = Cast<UOrbitalSaveGame>(
+            UGameplayStatics::LoadGameFromSlot(UOrbitalSaveGame::SaveSlotName, 0));
+        bCachedIsTutorialRun = TutSave && TutSave->IsTutorialRun();
+    }
+
     if (GEngine && GEngine->GameViewport)
     {
         MyCockpitWidget = SNew(SCockpitWidget).OwnerHUD(this);
@@ -297,9 +305,18 @@ void AMyHUD::ShowTutorialStep(const FString& Title, const FString& Body)
 
     bTutorialOverlayActive = true;
 
-    // Pause the game while the overlay is shown
+    // Pause the game and make sure the cursor is visible and UI input is
+    // active — without this the "GOT IT" button is unclickable in packaged
+    // builds and the game sits frozen.
     APlayerController* PC = GetOwningPlayerController();
-    if (PC) PC->SetPause(true);
+    if (PC)
+    {
+        PC->SetPause(true);
+        PC->bShowMouseCursor = true;
+        FInputModeUIOnly InputMode;
+        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        PC->SetInputMode(InputMode);
+    }
 
     // Disable cockpit input
     if (MyCockpitWidget.IsValid())
@@ -313,13 +330,23 @@ void AMyHUD::ShowTutorialStep(const FString& Title, const FString& Body)
             {
                 bTutorialOverlayActive = false;
 
-                // Re-enable cockpit input
+                // Restore input mode to what BeginPlay set up, then re-focus
+                // the cockpit so key presses keep working after the overlay.
+                APlayerController* PC = GetOwningPlayerController();
+                if (PC)
+                {
+                    FInputModeUIOnly InputMode;
+                    InputMode.SetWidgetToFocus(MyCockpitWidget);
+                    InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+                    PC->SetInputMode(InputMode);
+                    PC->bShowMouseCursor = true;
+                }
+
                 if (MyCockpitWidget.IsValid())
                 {
                     MyCockpitWidget->SetInputEnabled(true);
                     FSlateApplication::Get().SetKeyboardFocus(MyCockpitWidget);
                 }
-                    
             });
 
     GEngine->GameViewport->AddViewportWidgetContent(
@@ -328,11 +355,8 @@ void AMyHUD::ShowTutorialStep(const FString& Title, const FString& Body)
 
 void AMyHUD::CheckTutorialTriggers()
 {
-    // Only run during a tutorial run
-    UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
-        UGameplayStatics::LoadGameFromSlot(
-            UOrbitalSaveGame::SaveSlotName, 0));
-    if (!SaveGame || !SaveGame->IsTutorialRun()) return;
+    // Only run during a tutorial run (flag cached once in BeginPlay)
+    if (!bCachedIsTutorialRun) return;
 
     // Don't check while an overlay is already showing
     if (bTutorialOverlayActive) return;
@@ -340,7 +364,13 @@ void AMyHUD::CheckTutorialTriggers()
     ALanderPawn* Pawn = Cast<ALanderPawn>(GetOwningPawn());
     AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(
         GetWorld()->GetAuthGameMode());
-    if (!Pawn || !GM) return;
+
+    // Wait until the pawn exists and the briefing has finished.
+    // This guarantees the viewport is fully initialized before we add
+    // any widget, which prevents the invisible-overlay freeze in
+    // packaged builds where AddViewportWidgetContent is a no-op when
+    // called too early in the first frame.
+    if (!Pawn || !GM || !Pawn->bGameStarted) return;
 
     // Step 1 — Welcome, fires when briefing ends and game starts
     if (!bTutorialStep1Shown)

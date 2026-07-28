@@ -108,22 +108,19 @@ FReply STutorialOverlay::OnGotItClicked()
     if (GEngine && GEngine->GameViewport)
         GEngine->GameViewport->RemoveViewportWidgetContent(SharedThis(this));
 
-    // Unpause the game
+    // Unpause the game.  Input mode and cursor are restored by the
+    // OnDismissed callback in AMyHUD, which also re-focuses the cockpit.
     if (MyWorld)
     {
         APlayerController* PC = MyWorld->GetFirstPlayerController();
-        if (PC) 
+        if (PC)
         {
             PC->SetPause(false);
-
-            // Restore input mode to game+UI so keyboard works again
-            FInputModeUIOnly InputMode;
-            PC->SetInputMode(InputMode);
             PC->bShowMouseCursor = true;
         }
     }
 
-    // Notify the HUD that this step was dismissed
+    // Notify the HUD that this step was dismissed (re-enables cockpit, etc.)
     OnDismissed.ExecuteIfBound();
 
     return FReply::Handled();

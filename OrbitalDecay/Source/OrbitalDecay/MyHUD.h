@@ -73,6 +73,9 @@ public:
 
     TSharedPtr<STutorialOverlay> MyTutorialOverlay;
 
+    // Cached once in BeginPlay — avoids LoadGameFromSlot every frame
+    bool bCachedIsTutorialRun = false;
+
 protected:
     virtual void BeginPlay() override;
     virtual void DrawHUD() override;

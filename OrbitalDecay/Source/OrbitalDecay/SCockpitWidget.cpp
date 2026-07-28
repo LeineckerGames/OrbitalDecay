@@ -1207,27 +1207,81 @@ TSharedRef<SWidget> SCockpitWidget::BuildRightPanel()
                 ]
             ]
 
-            // ── BOTTOM: Thrust Switch (left) + Throttle (right) ───
+            // ── BOTTOM: Throttle Switch (left) + Throttle Indicator (right) ──
             + SVerticalBox::Slot()
             .FillHeight(0.45f)
             .Padding(0, 4, 0, 0)
             [
                 SNew(SHorizontalBox)
 
-                + SHorizontalBox::Slot()
-                .FillWidth(1.f)
-                .HAlign(HAlign_Center)
-                .VAlign(VAlign_Center)
-                [
-                    BuildThrustSwitch()
-                ]
+                // Left — Throttle Switch with label above, gray border only around switch
++ SHorizontalBox::Slot()
+.FillWidth(1.f)
+.HAlign(HAlign_Center)
+.VAlign(VAlign_Center)
+.Padding(2.f)
+[
+    SNew(SVerticalBox)
 
+    + SVerticalBox::Slot()
+    .AutoHeight()
+    .HAlign(HAlign_Center)
+    .Padding(0, 0, 0, 4)
+    [
+        SNew(STextBlock)
+        .Text(FText::FromString(TEXT("THROTTLE SWITCH")))
+        .Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+        .ColorAndOpacity(C_AccentAmber)
+        .Justification(ETextJustify::Center)
+    ]
+
+    + SVerticalBox::Slot()
+    .AutoHeight()
+    .HAlign(HAlign_Center)
+    [
+        SNew(SBorder)
+        .BorderImage(FCoreStyle::Get().GetBrush("NoBrush"))
+        .BorderBackgroundColor(C_PanelBg)
+        .Padding(6.f)
+        [
+            BuildThrustSwitch()
+        ]
+    ]
+]
+
+                // Right — Throttle Indicator with label and border
                 + SHorizontalBox::Slot()
                 .FillWidth(1.f)
                 .HAlign(HAlign_Center)
                 .VAlign(VAlign_Center)
+                .Padding(2.f)
                 [
-                    BuildThrottleIndicator()
+                    SNew(SBorder)
+                    .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                    .BorderBackgroundColor(C_PanelBorder)
+                    .Padding(6.f)
+                    [
+                        SNew(SVerticalBox)
+
+                        + SVerticalBox::Slot()
+                        .AutoHeight()
+                        .HAlign(HAlign_Center)
+                        .Padding(0, 0, 0, 4)
+                        [
+                            SNew(STextBlock)
+                            .Text(FText::FromString(TEXT("THROTTLE INDICATOR")))
+                            .Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+                            .ColorAndOpacity(C_AccentAmber)
+                            .Justification(ETextJustify::Center)
+                        ]
+
+                        + SVerticalBox::Slot()
+                        .AutoHeight()
+                        .HAlign(HAlign_Center)
+                        [
+                            BuildThrottleIndicator()
+                        ]
+                    ]
                 ]
             ]
         ];

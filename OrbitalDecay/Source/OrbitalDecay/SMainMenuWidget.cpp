@@ -837,8 +837,8 @@ FReply SMainMenuWidget::OnTutorialClicked()
         SaveGame->SaveCurrentLevel(1);
     }
 
-    // Load the game level
-    UGameplayStatics::OpenLevel(MyWorld, FName("test"));
+    // Load the game level with loading screen
+    ULoadingScreen::Show(MyWorld, FName("test"));
 
     return FReply::Handled();
 }

@@ -384,13 +384,13 @@ void AMyHUD::CheckTutorialTriggers()
         bTutorialStep1Shown = true;
         ShowTutorialStep(
             TEXT("WELCOME TO ORBITAL DECAY"),
-            TEXT("Your ship's computer is failing. You are the backup.\n\n"
+            TEXT("Your ship's computer is failing. You need to get it working FAST!\n\n"
                 "Watch your cockpit carefully:\n"
-                "• Fuel gauge — top left\n"
+                "• Fuel gauge — green bar on the right\n"
                 "• Math problem display — center\n"
-                "• Minimap — top right\n"
-                "• Altitude and vertical speed — bottom right\n\n"
-                "Gravity is always pulling you down. Don't wait too long.")
+                "• Minimap — right side\n"
+                "• Bottom Camera View — left side\n\n"
+                "Gravity is always pulling you down, so don't wait too long.")
         );
         return;
     }
@@ -402,10 +402,12 @@ void AMyHUD::CheckTutorialTriggers()
         ShowTutorialStep(
             TEXT("HOW TO CONTROL YOUR SHIP"),
             TEXT("Math IS your controls. Press a key to get a problem:\n\n"
-                "• W — Multiplication → Thrust upward\n"
-                "• A — Addition → Rotate left\n"
-                "• S — Subtraction → Rotate right\n"
-                "• D — Division → Add fuel\n\n"
+                "• W — Thrust forward/upward\n"
+                "• A — Rotate left\n"
+                "• D — Rotate right\n"
+                "• S — Add fuel\n"
+                "• L - Toggle Thrust direction\n"
+                "• R - Skip problem\n\n"
                 "Type your answer using the number keys or keypad, then press Enter.\n"
                 "Get it right and your ship responds. Get it wrong — nothing happens.")
         );
@@ -421,7 +423,7 @@ void AMyHUD::CheckTutorialTriggers()
             TEXT("You answered correctly and your ship responded.\n\n"
                 "Every correct answer fires a thruster for a short burst.\n"
                 "Keep solving problems to stay in control.\n\n"
-                "Remember — gravity never stops. Keep thrusting upward (W) "
+                "Remember, gravity never stops. Keep thrusting upward (W) "
                 "to slow your descent.")
         );
         return;
@@ -434,8 +436,7 @@ void AMyHUD::CheckTutorialTriggers()
         ShowTutorialStep(
             TEXT("FUEL WARNING"),
             TEXT("Your fuel is getting low.\n\n"
-                "Press D to get a Division problem.\n"
-                "Solve it correctly to add fuel to your tank.\n\n"
+                "Press S to refuel your ship's tank.\n\n"
                 "If you run out of fuel completely, only gravity acts on your ship "
                 "and you will crash. Refuel early.")
         );
@@ -454,11 +455,11 @@ void AMyHUD::CheckTutorialTriggers()
         ShowTutorialStep(
             TEXT("LANDING PAD NEARBY"),
             TEXT("Check your minimap.\n\n"
-                "• Yellow ring — a landing pad is nearby\n"
-                "• Red ring — you are directly above a pad\n\n"
-                "When you see a red ring, slow your descent using W (thrust up).\n"
-                "Land too fast and you will crash even on the pad.\n\n"
-                "Watch your vertical speed indicator — keep it close to zero.")
+                "• Red circle — a landing pad is nearby\n"
+                "The red circles will get bigger as you get closer to them.\n\n"
+                "• Yellow circle — you are directly above a landing pad\n"
+                "The circles will turn yellow on your minimap when you are above them.\n\n"
+                "Steer the ship to be directly above the pad.\n")
         );
         return;
     }
@@ -472,7 +473,7 @@ void AMyHUD::CheckTutorialTriggers()
             TEXT("Great landing!\n\n"
                 "There are 3 landing pads on this level. You need to land on all 3 "
                 "to complete the level.\n\n"
-                "After each landing your ship will relaunch automatically. "
+                "After each landing, your ship will relaunch automatically. "
                 "Use the minimap to find the next pad.\n\n"
                 "Good luck.")
         );

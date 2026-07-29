@@ -341,9 +341,8 @@ TSharedRef<SWidget> SMainMenuWidget::BuildDemoLevelSelectPage()
 
                     if (SaveGame)
                     {
-                        SaveGame->SaveCurrentLevel(i);
-                        UGameplayStatics::SaveGameToSlot(
-                            SaveGame, UOrbitalSaveGame::SaveSlotName, 0);
+                        SaveGame->bIsTutorialRun = false;  // never show tutorial popups from level select
+                        SaveGame->SaveCurrentLevel(i);     // single save — no race condition
                     }
 
                     ULoadingScreen::Show(MyWorld, FName("test"));

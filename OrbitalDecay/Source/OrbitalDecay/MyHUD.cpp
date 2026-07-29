@@ -59,11 +59,17 @@ void AMyHUD::BeginPlay()
     }
 
     // Cache the tutorial-run flag once so CheckTutorialTriggers doesn't
-    // hit the disk every frame.
+    // hit the disk every frame.  Consume-once: if the flag is true we
+    // immediately write false back so no future level inherits it.
     {
         UOrbitalSaveGame* TutSave = Cast<UOrbitalSaveGame>(
             UGameplayStatics::LoadGameFromSlot(UOrbitalSaveGame::SaveSlotName, 0));
         bCachedIsTutorialRun = TutSave && TutSave->IsTutorialRun();
+        if (bCachedIsTutorialRun && TutSave)
+        {
+            TutSave->bIsTutorialRun = false;
+            UGameplayStatics::SaveGameToSlot(TutSave, UOrbitalSaveGame::SaveSlotName, 0);
+        }
     }
 
     if (GEngine && GEngine->GameViewport)

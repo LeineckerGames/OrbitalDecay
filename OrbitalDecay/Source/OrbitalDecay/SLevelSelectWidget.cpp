@@ -177,7 +177,13 @@ TSharedRef<SWidget> SLevelSelectWidget::BuildLevelGrid()
             {
                 PlayButtonSound();
                 if (MyWorld)
+                {
+                    // Clear tutorial flag so popups don't appear on the test level
+                    UOrbitalSaveGame* SG = Cast<UOrbitalSaveGame>(
+                        UGameplayStatics::LoadGameFromSlot(UOrbitalSaveGame::SaveSlotName, 0));
+                    if (SG) SG->SetTutorialRun(false);
                     UGameplayStatics::OpenLevel(MyWorld, FName("test"));
+                }
                 return FReply::Handled();
             })
             [
@@ -224,7 +230,11 @@ FReply SLevelSelectWidget::OnPlayClicked()
             SaveGame = Cast<UOrbitalSaveGame>(
                 UGameplayStatics::CreateSaveGameObject(
                     UOrbitalSaveGame::StaticClass()));
-        if (SaveGame) SaveGame->SaveCurrentLevel(SelectedLevel);
+        if (SaveGame)
+        {
+            SaveGame->bIsTutorialRun = false;  // set directly — one save, no race condition
+            SaveGame->SaveCurrentLevel(SelectedLevel);
+        }
 
         FTimerHandle LoadLevelTimer;
         MyWorld->GetTimerManager().SetTimer(LoadLevelTimer, [this]()

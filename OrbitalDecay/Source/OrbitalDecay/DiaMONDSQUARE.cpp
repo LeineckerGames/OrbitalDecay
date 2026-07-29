@@ -6,6 +6,8 @@
 #include "KismetProceduralMeshLibrary.h"
 #include "OrbitalDecayGameMode.h"
 #include "ALanderPawn.h"
+#include "OrbitalSaveGame.h"
+#include "Kismet/GameplayStatics.h"
 
 
 ADiaMONDSQUARE::ADiaMONDSQUARE()
@@ -66,10 +68,23 @@ void ADiaMONDSQUARE::BeginPlay()
 
 	Super::BeginPlay();
 
-	AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(GetWorld()->GetAuthGameMode());
-	int32 CurrentLevel = GM ? GM->GlobalLevel : PreviewLevel;
+	// Read level directly from the save game so we're not dependent on
+	// AOrbitalDecayGameMode::BeginPlay having already run (actor BeginPlay
+	// order is not guaranteed in packaged builds).
+	int32 CurrentLevel = PreviewLevel;
+	if (UOrbitalSaveGame* SaveGame = Cast<UOrbitalSaveGame>(
+		UGameplayStatics::LoadGameFromSlot(UOrbitalSaveGame::SaveSlotName, 0)))
+	{
+		CurrentLevel = SaveGame->LoadCurrentLevel();
+	}
+	else
+	{
+		// No save file yet — fall back to game mode if available
+		AOrbitalDecayGameMode* GM = Cast<AOrbitalDecayGameMode>(GetWorld()->GetAuthGameMode());
+		if (GM) CurrentLevel = GM->GlobalLevel;
+	}
 
-	UE_LOG(LogTemp, Warning, TEXT("BeginPlay: GM valid=%s, GlobalLevel=%d"), GM ? TEXT("true") : TEXT("false"), CurrentLevel);
+	UE_LOG(LogTemp, Warning, TEXT("BeginPlay: CurrentLevel=%d (from save)"), CurrentLevel);
 	
 	ApplyLevelSettings(CurrentLevel);
 	ApplyObstaclePreset(CurrentLevel);

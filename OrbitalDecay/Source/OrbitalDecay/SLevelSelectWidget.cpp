@@ -232,7 +232,7 @@ FReply SLevelSelectWidget::OnPlayClicked()
                     UOrbitalSaveGame::StaticClass()));
         if (SaveGame)
         {
-            SaveGame->SetTutorialRun(false);  // never show tutorial popups from level select
+            SaveGame->bIsTutorialRun = false;  // set directly — one save, no race condition
             SaveGame->SaveCurrentLevel(SelectedLevel);
         }
 

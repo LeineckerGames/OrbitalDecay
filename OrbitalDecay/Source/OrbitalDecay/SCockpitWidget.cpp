@@ -933,11 +933,30 @@ TSharedRef<SWidget> SCockpitWidget::BuildRightPanel()
                 .VAlign(VAlign_Center)
                 .Padding(0, 0, 4, 0)
                 [
-                    SNew(SBox)
-                    .WidthOverride(110.f)
-                    .HeightOverride(110.f)
+                    SNew(SVerticalBox)
+
+                    + SVerticalBox::Slot()
+                    .AutoHeight()
+                    .HAlign(HAlign_Center)
+                    .Padding(0, 0, 0, 2)
                     [
-                        BuildMinimap()
+                        SNew(STextBlock)
+                        .Text(FText::FromString(TEXT("MINIMAP")))
+                        .Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+                        .ColorAndOpacity(C_AccentAmber)
+                        .Justification(ETextJustify::Center)
+                    ]
+
+                    + SVerticalBox::Slot()
+                    .AutoHeight()
+                    .HAlign(HAlign_Center)
+                    [
+                        SNew(SBox)
+                        .WidthOverride(110.f)
+                        .HeightOverride(110.f)
+                        [
+                            BuildMinimap()
+                        ]
                     ]
                 ]
 

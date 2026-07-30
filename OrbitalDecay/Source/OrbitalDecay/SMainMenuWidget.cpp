@@ -861,14 +861,6 @@ TSharedRef<SWidget> SMainMenuWidget::BuildAboutPage()
         [MakeSubHeader(TEXT("Audio"))]
 
         + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
-        [MakeAssetCard(
-            TEXT("<Asset Name>"),
-            TEXT("<Creator Name>"),
-            TEXT("<Website or Collection>"),
-            TEXT("<License Name>"),
-            TEXT("<If required>"))]
-
-        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
         [MakeAssetCard(TEXT("Thrust"),          TEXT("mango777"),              TEXT("freesound.org"), TEXT("CC0"),      TEXT(""))]
         + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
         [MakeAssetCard(TEXT("Button Click"),    TEXT("Christopherderp"),       TEXT("freesound.org"), TEXT("CC0"),      TEXT(""))]

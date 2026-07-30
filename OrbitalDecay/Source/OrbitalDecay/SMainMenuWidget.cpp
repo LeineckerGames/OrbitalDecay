@@ -23,6 +23,7 @@
 #include "OrbitalSettingsSave.h"
 #include "LoadingScreen.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/Layout/SScrollBox.h"
 
 // ─── Colors ───────────────────────────────────────────────────────
 static const FLinearColor MM_Bg         = FLinearColor(0.02f, 0.03f, 0.05f, 1.f);
@@ -685,12 +686,114 @@ TSharedRef<SWidget> SMainMenuWidget::BuildSettingsPage()
 // ─── About Page ───────────────────────────────────────────────────
 TSharedRef<SWidget> SMainMenuWidget::BuildAboutPage()
 {
-    return SNew(SVerticalBox)
+    // Section header with a thin accent line beneath it
+    auto MakeSectionHeader = [](const FString& Label) -> TSharedRef<SWidget>
+    {
+        return SNew(SVerticalBox)
+            + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 0, 0, 6)
+            [
+                SNew(STextBlock)
+                .Text(FText::FromString(Label))
+                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 22))
+                .ColorAndOpacity(MM_TitleColor)
+                .Justification(ETextJustify::Center)
+            ]
+            + SVerticalBox::Slot().AutoHeight()
+            [
+                SNew(SBox).HeightOverride(1.f)
+                [
+                    SNew(SBorder)
+                    .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+                    .BorderBackgroundColor(FLinearColor(0.20f, 1.00f, 0.30f, 0.25f))
+                ]
+            ];
+    };
 
-        + SVerticalBox::Slot()
-        .AutoHeight()
-        .HAlign(HAlign_Center)
-        .Padding(0, 40, 0, 24)
+    // Sub-category label (Textures, Audio, Sprites)
+    auto MakeSubHeader = [](const FString& Label) -> TSharedRef<SWidget>
+    {
+        return SNew(STextBlock)
+            .Text(FText::FromString(Label))
+            .Font(FCoreStyle::GetDefaultFontStyle("Bold", 17))
+            .ColorAndOpacity(MM_SubColor);
+    };
+
+    // Creator row:  Name — Role
+    auto MakeCreatorRow = [](const FString& Name, const FString& Role) -> TSharedRef<SWidget>
+    {
+        return SNew(SHorizontalBox)
+            + SHorizontalBox::Slot().AutoWidth()
+            [
+                SNew(STextBlock)
+                .Text(FText::FromString(Name))
+                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 15))
+                .ColorAndOpacity(MM_TextColor)
+            ]
+            + SHorizontalBox::Slot().AutoWidth().Padding(8, 0)
+            [
+                SNew(STextBlock)
+                .Text(FText::FromString(TEXT("—")))
+                .Font(FCoreStyle::GetDefaultFontStyle("Regular", 15))
+                .ColorAndOpacity(MM_SubColor)
+            ]
+            + SHorizontalBox::Slot().AutoWidth()
+            [
+                SNew(STextBlock)
+                .Text(FText::FromString(Role))
+                .Font(FCoreStyle::GetDefaultFontStyle("Regular", 15))
+                .ColorAndOpacity(MM_SubColor)
+            ];
+    };
+
+    // Asset card — only renders rows whose value is non-empty
+    auto MakeAssetCard = [](
+        const FString& Name,
+        const FString& Creator,
+        const FString& Source,
+        const FString& License,
+        const FString& AdditionalCredit) -> TSharedRef<SWidget>
+    {
+        TSharedRef<SVerticalBox> VBox = SNew(SVerticalBox)
+            + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)
+            [
+                SNew(STextBlock)
+                .Text(FText::FromString(Name))
+                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 14))
+                .ColorAndOpacity(MM_TextColor)
+            ];
+
+        auto AddRow = [&](const FString& RowLabel, const FString& Value)
+        {
+            if (Value.IsEmpty()) return;
+            VBox->AddSlot().AutoHeight()
+            [
+                SNew(STextBlock)
+                .Text(FText::FromString(RowLabel + TEXT(": ") + Value))
+                .Font(FCoreStyle::GetDefaultFontStyle("Regular", 12))
+                .ColorAndOpacity(MM_SubColor)
+                .AutoWrapText(true)
+            ];
+        };
+
+        AddRow(TEXT("Creator"),           Creator);
+        AddRow(TEXT("Source"),            Source);
+        AddRow(TEXT("License"),           License);
+        AddRow(TEXT("Additional Credit"), AdditionalCredit);
+
+        return SNew(SBorder)
+            .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+            .BorderBackgroundColor(FLinearColor(0.06f, 0.08f, 0.12f, 1.f))
+            .Padding(FMargin(16.f, 10.f))
+            [
+                VBox
+            ];
+    };
+
+    // ── Assemble scrollable content ──────────────────────────────────
+    TSharedRef<SVerticalBox> ContentBox = SNew(SVerticalBox)
+
+        // Title
+        + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 36, 0, 32)
         [
             SNew(STextBlock)
             .Text(FText::FromString(TEXT("CREDITS")))
@@ -698,89 +801,164 @@ TSharedRef<SWidget> SMainMenuWidget::BuildAboutPage()
             .ColorAndOpacity(MM_TitleColor)
         ]
 
-        + SVerticalBox::Slot()
-        .AutoHeight()
-        .HAlign(HAlign_Center)
-        .Padding(0, 0, 0, 12)
+        // ── CREATORS ────────────────────────────────────────────────
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 18)
+        [MakeSectionHeader(TEXT("CREATORS"))]
+
+        + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 5)
+        [MakeCreatorRow(TEXT("Nicholas Piazza"),        TEXT("Project Manager"))]
+        + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 5)
+        [MakeCreatorRow(TEXT("Gabriel Gimeno-Alberti"), TEXT("Scrum Master"))]
+        + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 5)
+        [MakeCreatorRow(TEXT("Lucas Santana"),          TEXT("Developer"))]
+        + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 5)
+        [MakeCreatorRow(TEXT("Diego Toro"),             TEXT("Developer"))]
+        + SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 5, 0, 36)
+        [MakeCreatorRow(TEXT("Heather Lancaster"),      TEXT("Developer"))]
+
+        // ── THIRD-PARTY ASSETS ──────────────────────────────────────
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 18)
+        [MakeSectionHeader(TEXT("THIRD-PARTY ASSETS"))]
+
+        // Textures
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeSubHeader(TEXT("Textures"))]
+
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(
+            TEXT("Pluto Texture"),
+            TEXT("David Seal"),
+            TEXT("NASA Science 3D Resources"),
+            TEXT("NASA Media Usage Guidelines"),
+            TEXT("Based on artwork by Pat Rawlings and JPL/Caltech planetary maps"))]
+
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(
+            TEXT("Mars Texture"),
+            TEXT("NASA/Jet Propulsion Laboratory & Caltech"),
+            TEXT("NASA Science 3D Resources"),
+            TEXT("NASA Media Usage Guidelines"),
+            TEXT("From Viking images processed at the USGS"))]
+
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(
+            TEXT("Jupiter Texture"),
+            TEXT("JPL & Caltech"),
+            TEXT("NASA Science 3D Resources"),
+            TEXT("NASA Media Usage Guidelines"),
+            TEXT("From Voyager images"))]
+
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 36)
+        [MakeAssetCard(
+            TEXT("Moon Texture"),
+            TEXT("Johnson Space Center"),
+            TEXT("NASA Science 3D Resources"),
+            TEXT("NASA Media Usage Guidelines"),
+            TEXT(""))]
+
+        // Audio
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeSubHeader(TEXT("Audio"))]
+
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(
+            TEXT("<Asset Name>"),
+            TEXT("<Creator Name>"),
+            TEXT("<Website or Collection>"),
+            TEXT("<License Name>"),
+            TEXT("<If required>"))]
+
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(TEXT("Thrust"),          TEXT("mango777"),              TEXT("freesound.org"), TEXT("CC0"),      TEXT(""))]
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(TEXT("Button Click"),    TEXT("Christopherderp"),       TEXT("freesound.org"), TEXT("CC0"),      TEXT(""))]
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(TEXT("Turning"),         TEXT("wjoojoo"),               TEXT("freesound.org"), TEXT("CC BY 4.0"),TEXT(""))]
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(TEXT("Keyboard Click"),  TEXT("mccreery"),              TEXT("freesound.org"), TEXT("CC0"),      TEXT(""))]
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(TEXT("Lever"),           TEXT("SoundsofTheMachine"),    TEXT("freesound.org"), TEXT("CC0"),      TEXT(""))]
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(TEXT("Beeping"),         TEXT("JapanYoshiTheGamer"),    TEXT("freesound.org"), TEXT("CC0"),      TEXT(""))]
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(TEXT("Correct Answer"),  TEXT("bwg2020"),               TEXT("freesound.org"), TEXT("CC0"),      TEXT(""))]
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(TEXT("Wrong Answer"),    TEXT("Breviceps"),             TEXT("freesound.org"), TEXT("CC0"),      TEXT(""))]
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(TEXT("Refueling"),       TEXT("Noizemaker"),            TEXT("freesound.org"), TEXT("CC0"),      TEXT(""))]
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeAssetCard(TEXT("Button Hover"),    TEXT("eqylizer"),              TEXT("freesound.org"), TEXT("CC0"),      TEXT(""))]
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 36)
+        [MakeAssetCard(TEXT("Main Menu Music"), TEXT("Jadis0x"),               TEXT("freesound.org"), TEXT("CC0"),      TEXT(""))]
+
+        // Sprites
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+        [MakeSubHeader(TEXT("Sprites"))]
+
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 36)
+        [MakeAssetCard(TEXT("Glorp Cat"), TEXT("Toby Hart"), TEXT(""), TEXT(""), TEXT(""))]
+
+        // Bottom clearance so last item doesn't sit behind the back button
+        + SVerticalBox::Slot().AutoHeight().Padding(0, 20)
+        [SNew(SSpacer).Size(FVector2D(0, 1))];
+
+    return SNew(SOverlay)
+
+        // Dark background fill
+        + SOverlay::Slot()
+        .HAlign(HAlign_Fill)
+        .VAlign(VAlign_Fill)
         [
-            SNew(STextBlock)
-            .Text(FText::FromString(TEXT("DEVELOPERS")))
-            .Font(FCoreStyle::GetDefaultFontStyle("Bold", 20))
-            .ColorAndOpacity(MM_SubColor)
+            SNew(SBorder)
+            .BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+            .BorderBackgroundColor(MM_Bg)
         ]
 
-        + SVerticalBox::Slot()
-        .AutoHeight()
+        // Scrollable content — leaves 80 px at bottom for the back button
+        + SOverlay::Slot()
         .HAlign(HAlign_Center)
-        .Padding(0, 8)
+        .VAlign(VAlign_Fill)
+        .Padding(0.f, 0.f, 0.f, 80.f)
         [
-            SNew(STextBlock)
-            .Text(FText::FromString(TEXT("Nicholas Piazza")))
-            .Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
-            .ColorAndOpacity(MM_TextColor)
-            .Justification(ETextJustify::Center)
+            SNew(SScrollBox)
+            + SScrollBox::Slot()
+            [
+                SNew(SBox)
+                .WidthOverride(700.f)
+                [
+                    ContentBox
+                ]
+            ]
         ]
 
-        + SVerticalBox::Slot()
-        .AutoHeight()
-        .HAlign(HAlign_Center)
-        .Padding(0, 8)
+        // Back button — bottom left, matching all other pages
+        + SOverlay::Slot()
+        .HAlign(HAlign_Left)
+        .VAlign(VAlign_Bottom)
+        .Padding(30.f)
         [
-            SNew(STextBlock)
-            .Text(FText::FromString(TEXT("Gabriel Gimeno-Alberti")))
-            .Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
-            .ColorAndOpacity(MM_TextColor)
-            .Justification(ETextJustify::Center)
-        ]
-
-        + SVerticalBox::Slot()
-        .AutoHeight()
-        .HAlign(HAlign_Center)
-        .Padding(0, 8)
-        [
-            SNew(STextBlock)
-            .Text(FText::FromString(TEXT("Lucas Santana")))
-            .Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
-            .ColorAndOpacity(MM_TextColor)
-            .Justification(ETextJustify::Center)
-        ]
-
-        + SVerticalBox::Slot()
-        .AutoHeight()
-        .HAlign(HAlign_Center)
-        .Padding(0, 8)
-        [
-            SNew(STextBlock)
-            .Text(FText::FromString(TEXT("Diego Toro")))
-            .Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
-            .ColorAndOpacity(MM_TextColor)
-            .Justification(ETextJustify::Center)
-        ]
-
-        + SVerticalBox::Slot()
-        .AutoHeight()
-        .HAlign(HAlign_Center)
-        .Padding(0, 8)
-        [
-            SNew(STextBlock)
-            .Text(FText::FromString(TEXT("Heather Lancaster")))
-            .Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
-            .ColorAndOpacity(MM_TextColor)
-            .Justification(ETextJustify::Center)
-        ]
-
-        + SVerticalBox::Slot()
-        .AutoHeight()
-        .HAlign(HAlign_Center)
-        .Padding(0, 40)
-        [
-            MakeMenuButton(TEXT("BACK"),
-                FOnClicked::CreateLambda([this]() -> FReply
+            SNew(SBox)
+            .WidthOverride(120.f)
+            .HeightOverride(44.f)
+            [
+                SNew(SButton)
+                .ButtonColorAndOpacity(MM_BtnBg)
+                .HAlign(HAlign_Center)
+                .VAlign(VAlign_Center)
+                .OnClicked(FOnClicked::CreateLambda([this]() -> FReply
                 {
+                    PlayButtonSound();
                     NavigateTo(BuildHomePage());
                     return FReply::Handled();
-                }),
-                FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
+                }))
+                .OnHovered(FSimpleDelegate::CreateSP(this, &SMainMenuWidget::PlayHoverSound))
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("← BACK")))
+                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
+                    .ColorAndOpacity(MM_TextColor)
+                ]
+            ]
         ];
 }
 
